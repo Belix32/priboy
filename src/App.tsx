@@ -1,8 +1,10 @@
-import { Routes, Route } from 'react-router-dom';
+import { Routes, Route, useLocation } from 'react-router-dom';
 import { lazy, Suspense } from 'react';
+import { TravelHeader } from './components/TravelHeader/TravelHeader';
 
 // Auth pages
 const Login = lazy(() => import('./pages/Login/Login').then(m => ({ default: m.Login })));
+const Register = lazy(() => import('./pages/Register/Register').then(m => ({ default: m.Register })));
 
 // Travel pages (user-facing)
 const TravelHome = lazy(() => import('./pages/Travel/TravelHome').then(m => ({ default: m.TravelHome })));
@@ -57,14 +59,20 @@ function PageLoader() {
 }
 
 export default function App() {
+  const location = useLocation();
+  // Show header on public/travel/auth pages, hide on admin/partner
+  const showHeader = !location.pathname.startsWith('/admin') && !location.pathname.startsWith('/partner');
+
   return (
     <>
       <a href="#main" className="skipLink">Перейти к основному контенту</a>
+      {showHeader && <TravelHeader />}
       <main id="main" role="main">
         <Suspense fallback={<PageLoader />}>
           <Routes>
             {/* Auth */}
             <Route path="/login" element={<Login />} />
+            <Route path="/register" element={<Register />} />
             <Route path="/admin-login" element={<Login />} />
 
             {/* User pages */}
