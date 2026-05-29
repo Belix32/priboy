@@ -1,0 +1,113 @@
+/* Прибой — Theme Variables */
+:root {
+  /* Light theme */
+  --bg-primary: #ffffff;
+  --bg-secondary: #f0f9ff;
+  --bg-card: #ffffff;
+  --text-primary: #0c1a2e;
+  --text-secondary: #5b6f82;
+  --accent: #0ea5e9;
+  --accent-hover: #0284c7;
+  --border: #e2e8f0;
+  --success: #059669;
+  --error: #dc2626;
+
+  /* Прибой ocean theme — Light */
+  --ocean-deep: #0c4a6e;
+  --ocean-mid: #0369a1;
+  --ocean-light: #0284c7;
+  --ocean-accent: #0ea5e9;
+  --ocean-gradient: linear-gradient(135deg, #0c4a6e 0%, #0369a1 30%, #0284c7 60%, #0ea5e9 100%);
+  --ocean-gradient-text: linear-gradient(135deg, #38bdf8, #0ea5e9);
+  --ocean-text: #ffffff;
+  --ocean-text-secondary: rgba(255, 255, 255, 0.85);
+  --ocean-btn-bg: #ffffff;
+  --ocean-btn-text: #0369a1;
+  --ocean-btn-hover-bg: #f0f9ff;
+  --ocean-card-bg: rgba(255, 255, 255, 0.15);
+  --ocean-step-bg: linear-gradient(135deg, #0ea5e9, #38bdf8);
+  --shadow-card-hover: 0 8px 24px rgba(0, 0, 0, 0.1);
+
+  /* Priboi accent */
+  --priboi-wave: linear-gradient(135deg, #0ea5e9, #06b6d4, #0ea5e9);
+  --priboi-gold: #f59e0b;
+
+  /* Typography */
+  --font-primary: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+
+  /* Font sizes */
+  --font-size-h1: 48px;
+  --font-size-h2: 32px;
+  --font-size-h3: 20px;
+  --font-size-body: 16px;
+  --font-size-small: 14px;
+  --font-size-caption: 12px;
+
+  /* Spacing */
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 16px;
+  --spacing-lg: 24px;
+  --spacing-xl: 32px;
+  --spacing-2xl: 48px;
+  --spacing-3xl: 64px;
+
+  /* Border radius */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+
+  /* Transitions */
+  --transition-fast: 0.15s ease;
+  --transition-normal: 0.25s ease;
+
+  /* Container */
+  --container-max: 1200px;
+  --container-padding: 20px;
+}
+
+/* Dark theme */
+[data-theme="dark"] {
+  --bg-primary: #0c1628;
+  --bg-secondary: #111d32;
+  --bg-card: #1a2a40;
+  --text-primary: #e2e8f0;
+  --text-secondary: #94a3b8;
+  --accent: #38bdf8;
+  --accent-hover: #60a5fa;
+  --border: #1e3a5a;
+  --success: #10b981;
+  --error: #ef4444;
+
+  --ocean-deep: #051e34;
+  --ocean-mid: #0a3a5a;
+  --ocean-light: #0c5480;
+  --ocean-accent: #38bdf8;
+  --ocean-gradient: linear-gradient(135deg, #051e34 0%, #0a3a5a 30%, #0c5480 60%, #0e6ba0 100%);
+  --ocean-gradient-text: linear-gradient(135deg, #60a5fa, #38bdf8);
+  --ocean-text: rgba(255, 255, 255, 0.92);
+  --ocean-text-secondary: rgba(255, 255, 255, 0.7);
+  --ocean-btn-bg: rgba(255, 255, 255, 0.12);
+  --ocean-btn-text: #60a5fa;
+  --ocean-btn-hover-bg: rgba(255, 255, 255, 0.18);
+  --ocean-card-bg: rgba(255, 255, 255, 0.08);
+  --ocean-step-bg: linear-gradient(135deg, #2563eb, #3b82f6);
+  --shadow-card-hover: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
+/* Smooth transition */
+* {
+  transition: background-color 0.3s ease,
+              color 0.2s ease,
+              border-color 0.2s ease,
+              box-shadow 0.2s ease;
+}
+
+@media (max-width: 768px) {
+  :root {
+    --font-size-h1: 36px;
+    --font-size-h2: 28px;
+    --font-size-h3: 18px;
+    --font-size-body: 15px;
+  }
+}
