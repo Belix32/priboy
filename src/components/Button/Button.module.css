@@ -67,6 +67,19 @@
   color: #ffffff;
 }
 
+/* Accent — gradient wave style for admin buttons */
+.accent {
+  background: linear-gradient(135deg, #0ea5e9, #06b6d4);
+  color: #ffffff;
+  border-color: transparent;
+  font-weight: 600;
+}
+
+.accent:hover:not(:disabled) {
+  background: linear-gradient(135deg, #0284c7, #0891b2);
+  box-shadow: 0 4px 12px rgba(14, 165, 233, 0.3);
+}
+
 /* Danger */
 .danger {
   background: var(--error);
