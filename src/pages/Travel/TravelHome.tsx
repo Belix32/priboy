@@ -1,8 +1,20 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
 import { Button } from '../../components/Button/Button';
 import styles from './TravelHome.module.css';
 import sharedStyles from './Travel.module.css';
+
+// Fix Leaflet default icon
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+delete (L.Icon.Default.prototype as any)._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+  iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
+  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+});
 
 interface Destination {
   id: string;
@@ -10,15 +22,54 @@ interface Destination {
   slug: string;
   image: string;
   region: string;
+  latitude: number;
+  longitude: number;
   is_active: boolean;
   sort_order: number;
 }
 
 const MOCK_DESTINATIONS: Destination[] = [
-  { id: 'dest-1', name: 'Сочи', slug: 'sochi', image: '', region: 'Краснодарский край', is_active: true, sort_order: 1 },
-  { id: 'dest-2', name: 'Анапа', slug: 'anapa', image: '', region: 'Краснодарский край', is_active: true, sort_order: 2 },
-  { id: 'dest-3', name: 'Геленджик', slug: 'gelendzhik', image: '', region: 'Краснодарский край', is_active: true, sort_order: 3 },
+  { id: 'dest-1', name: 'Сочи', slug: 'sochi', image: '', region: 'Краснодарский край', latitude: 43.6028, longitude: 39.7343, is_active: true, sort_order: 1 },
+  { id: 'dest-2', name: 'Анапа', slug: 'anapa', image: '', region: 'Краснодарский край', latitude: 44.8948, longitude: 37.3162, is_active: true, sort_order: 2 },
+  { id: 'dest-3', name: 'Геленджик', slug: 'gelendzhik', image: '', region: 'Краснодарский край', latitude: 44.5622, longitude: 38.0780, is_active: true, sort_order: 3 },
 ];
+
+/** Mini-map preview for a destination city card */
+function DestinationMiniMap({ lat, lng, cityName }: { lat: number; lng: number; cityName: string }) {
+  const icon = L.divIcon({
+    className: '',
+    html: `<div style="
+      width: 28px; height: 28px;
+      background: #0ea5e9;
+      border: 3px solid white;
+      border-radius: 50%;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+      display: flex; align-items: center; justify-content: center;
+    "></div>`,
+    iconSize: [28, 28],
+    iconAnchor: [14, 14],
+  });
+
+  return (
+    <MapContainer
+      center={[lat, lng]}
+      zoom={12}
+      scrollWheelZoom={false}
+      dragging={false}
+      zoomControl={false}
+      attributionControl={false}
+      style={{ width: '100%', height: '100%' }}
+    >
+      <TileLayer
+        attribution='&copy; <a href="https://openstreetmap.org/copyright">OSM</a>'
+        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+      />
+      <Marker position={[lat, lng]} icon={icon}>
+        <Popup>{cityName}</Popup>
+      </Marker>
+    </MapContainer>
+  );
+}
 
 export function TravelHome() {
   const navigate = useNavigate();
@@ -176,10 +227,11 @@ export function TravelHome() {
                   }}
                 >
                   <div className={styles.destinationImage}>
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1">
-                      <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
-                      <circle cx="12" cy="10" r="3" />
-                    </svg>
+                    <DestinationMiniMap
+                      lat={dest.latitude}
+                      lng={dest.longitude}
+                      cityName={dest.name}
+                    />
                   </div>
                   <div className={styles.destinationInfo}>
                     <h3 className={styles.destinationName}>{dest.name}</h3>

@@ -155,8 +155,7 @@ const DESTINATION_FILTERS = [
 
 const MAP_CENTER: [number, number] = [44.5, 39.0];
 const MAP_ZOOM = 8;
-const TILE_URL =
-  'https://core-renderer-tiles.maps.yandex.ru/tiles?l=map&x={x}&y={y}&z={z}&scale=1&lang=ru_RU';
+const TILE_URL = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
 
 // ============================================================================
 // Helper: create marker icon
@@ -463,7 +462,10 @@ export function TravelMap() {
           zoomControl={true}
           attributionControl={false}
         >
-          <TileLayer attribution="" url={TILE_URL} />
+          <TileLayer
+            attribution='&copy; <a href="https://openstreetmap.org/copyright">OpenStreetMap</a>'
+            url={TILE_URL}
+          />
 
           <MapFlyTo
             location={flyTarget}
