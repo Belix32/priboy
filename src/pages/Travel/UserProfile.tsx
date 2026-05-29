@@ -102,7 +102,7 @@ function saveOwnCar(car: OwnCarInfo): void {
 }
 
 export function UserProfile() {
-  const { user } = useAuth();
+  const { user, hasAdminAccess } = useAuth();
   const navigate = useNavigate();
   const [trips, setTrips] = useState<TravelBookingData[]>([]);
   const [loading, setLoading] = useState(true);
@@ -226,9 +226,16 @@ export function UserProfile() {
             <h1 className={styles.title}>Личный кабинет</h1>
             <p className={styles.subtitle}>{user.email}</p>
           </div>
-          <Button variant="primary" onClick={() => navigate('/travel/search')}>
-            Новая поездка
-          </Button>
+          <div className={styles.headerActions}>
+            {hasAdminAccess && (
+              <Button variant="accent" onClick={() => navigate('/admin')}>
+                Админ-панель
+              </Button>
+            )}
+            <Button variant="primary" onClick={() => navigate('/travel/search')}>
+              Новая поездка
+            </Button>
+          </div>
         </div>
 
         {/* === My Car Section === */}
