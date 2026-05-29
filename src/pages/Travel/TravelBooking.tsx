@@ -6,6 +6,24 @@ import { Input } from '../../components/Input/Input';
 import styles from './TravelBooking.module.css';
 import sharedStyles from './Travel.module.css';
 
+const PROFILE_CAR_KEY = 'priboi_user_car';
+
+interface ProfileCar {
+  brand: string;
+  model: string;
+  color: string;
+  license_plate: string;
+}
+
+function loadProfileCar(): ProfileCar | null {
+  try {
+    const raw = localStorage.getItem(PROFILE_CAR_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
 interface PartnerInfo {
   id: string;
   name: string;
@@ -103,6 +121,10 @@ export function TravelBooking() {
   const [ownPlate, setOwnPlate] = useState('');
   const [plateError, setPlateError] = useState('');
 
+  // Profile car suggestion
+  const [profileCar, setProfileCar] = useState<ProfileCar | null>(null);
+  const [usedProfileCar, setUsedProfileCar] = useState(false);
+
   // Storage toggle
   const [storageEnabled, setStorageEnabled] = useState(true);
 
@@ -130,6 +152,14 @@ export function TravelBooking() {
     return () => clearTimeout(timer);
   }, [carId]);
 
+  // Load saved car from user profile
+  useEffect(() => {
+    const saved = loadProfileCar();
+    if (saved && saved.brand && saved.model) {
+      setProfileCar(saved);
+    }
+  }, []);
+
   const days = useMemo(() => {
     if (!startDate || !endDate) return 0;
     return calcDays(startDate, endDate);
@@ -153,6 +183,23 @@ export function TravelBooking() {
   const totalPrice = useMemo(() => {
     return rentTotal + storageTotal + serviceFee;
   }, [rentTotal, storageTotal, serviceFee]);
+
+  const handleUseProfileCar = () => {
+    if (!profileCar) return;
+    setOwnBrand(profileCar.brand);
+    setOwnModel(profileCar.model);
+    setOwnColor(profileCar.color);
+    setOwnPlate(profileCar.license_plate);
+    setUsedProfileCar(true);
+  };
+
+  const handleClearProfileCar = () => {
+    setOwnBrand('');
+    setOwnModel('');
+    setOwnColor('');
+    setOwnPlate('');
+    setUsedProfileCar(false);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -322,6 +369,57 @@ export function TravelBooking() {
                   {days} {days === 1 ? 'день' : days < 5 ? 'дня' : 'дней'}
                 </div>
               </div>
+            </div>
+          )}
+
+          {/* Profile Car Suggestion */}
+          {profileCar && !usedProfileCar && (
+            <div className={styles.profileCarSuggestion}>
+              <div className={styles.profileCarSuggestionIcon}>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M14 16H9m10 0h3l-3-4m-6 4H6l-2 2H2l1.5-6.5A3 3 0 0 1 6.5 9H11l3 3v4Z" />
+                  <circle cx="7" cy="17" r="1" />
+                  <circle cx="17" cy="17" r="1" />
+                </svg>
+              </div>
+              <div className={styles.profileCarSuggestionBody}>
+                <div className={styles.profileCarSuggestionTitle}>
+                  Ваш автомобиль из профиля
+                </div>
+                <div className={styles.profileCarSuggestionCar}>
+                  {profileCar.brand} {profileCar.model}
+                  {profileCar.color && <span className={styles.profileCarSuggestionDot}>·</span>}
+                  {profileCar.color}
+                  {profileCar.license_plate && (
+                    <span className={styles.profileCarSuggestionPlate}>
+                      {profileCar.license_plate}
+                    </span>
+                  )}
+                </div>
+              </div>
+              <div className={styles.profileCarSuggestionActions}>
+                <Button variant="primary" size="small" onClick={handleUseProfileCar}>
+                  Использовать
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* Profile car already applied badge */}
+          {usedProfileCar && profileCar && (
+            <div className={styles.profileCarApplied}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
+              Используется автомобиль из профиля:
+              <strong>{profileCar.brand} {profileCar.model}</strong>
+              <button
+                type="button"
+                className={styles.profileCarChangeBtn}
+                onClick={handleClearProfileCar}
+              >
+                Изменить
+              </button>
             </div>
           )}
 

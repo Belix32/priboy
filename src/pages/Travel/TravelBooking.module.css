@@ -274,6 +274,124 @@
   font-weight: 600 !important;
 }
 
+/* Profile Car Suggestion */
+.profileCarSuggestion {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  padding: var(--spacing-lg);
+  background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 8%, var(--bg-card)), var(--bg-card));
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--border));
+  border-radius: var(--radius-lg);
+  margin-bottom: var(--spacing-md);
+  animation: fadeSlideIn 0.3s ease-out;
+}
+
+@keyframes fadeSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.profileCarSuggestionIcon {
+  width: 48px;
+  height: 48px;
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent);
+  flex-shrink: 0;
+}
+
+.profileCarSuggestionBody {
+  flex: 1;
+  min-width: 0;
+}
+
+.profileCarSuggestionTitle {
+  font-size: var(--font-size-small);
+  font-weight: 600;
+  color: var(--accent);
+  margin-bottom: 2px;
+}
+
+.profileCarSuggestionCar {
+  font-size: var(--font-size-body);
+  font-weight: 600;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.profileCarSuggestionDot {
+  color: var(--text-secondary);
+  margin: 0 2px;
+}
+
+.profileCarSuggestionPlate {
+  background: var(--bg-secondary);
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-family: monospace;
+  font-size: var(--font-size-caption);
+  letter-spacing: 0.5px;
+}
+
+.profileCarSuggestionActions {
+  flex-shrink: 0;
+}
+
+/* Profile Car Applied Badge */
+.profileCarApplied {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-sm) var(--spacing-md);
+  background: color-mix(in srgb, var(--success) 8%, var(--bg-card));
+  border: 1px solid color-mix(in srgb, var(--success) 25%, var(--border));
+  border-radius: var(--radius-md);
+  margin-bottom: var(--spacing-md);
+  font-size: var(--font-size-small);
+  color: var(--text-secondary);
+}
+
+.profileCarApplied svg {
+  color: var(--success);
+  flex-shrink: 0;
+}
+
+.profileCarApplied strong {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.profileCarChangeBtn {
+  margin-left: auto;
+  background: none;
+  border: none;
+  color: var(--accent);
+  font-size: var(--font-size-small);
+  font-weight: 500;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  transition: background var(--transition-fast);
+  flex-shrink: 0;
+}
+
+.profileCarChangeBtn:hover {
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+}
+
 /* Mobile */
 @media (max-width: 768px) {
   .container {
@@ -294,6 +412,27 @@
 
   .dateDisplay {
     flex-direction: column;
+  }
+
+  .profileCarSuggestion {
+    flex-direction: column;
+    text-align: center;
+    gap: var(--spacing-sm);
+  }
+
+  .profileCarSuggestionCar {
+    justify-content: center;
+  }
+
+  .profileCarApplied {
+    flex-wrap: wrap;
+    justify-content: center;
+    text-align: center;
+  }
+
+  .profileCarChangeBtn {
+    margin-left: 0;
+    width: 100%;
   }
 }
 
