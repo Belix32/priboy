@@ -1,0 +1,503 @@
+/* User Profile Styles */
+
+.page {
+  min-height: 100vh;
+  background: var(--bg-secondary);
+}
+
+.container {
+  max-width: var(--container-max);
+  margin: 0 auto;
+  padding: var(--spacing-lg) var(--container-padding);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--spacing-xl);
+}
+
+.title {
+  font-size: var(--font-size-h2);
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0 0 4px;
+}
+
+.subtitle {
+  font-size: var(--font-size-small);
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+/* Sections */
+.section {
+  margin-bottom: var(--spacing-xl);
+}
+
+.sectionHeader {
+  margin-bottom: var(--spacing-md);
+}
+
+.sectionTitle {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  font-size: var(--font-size-h3);
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0 0 4px;
+}
+
+.sectionTitle svg {
+  color: var(--accent);
+  flex-shrink: 0;
+}
+
+.sectionDesc {
+  font-size: var(--font-size-small);
+  color: var(--text-secondary);
+  margin: 0 0 0 28px;
+}
+
+/* Car Card */
+.carCard {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-lg);
+}
+
+.carInfo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-md);
+}
+
+.carInfoMain {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+}
+
+.carAvatar {
+  width: 56px;
+  height: 56px;
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent);
+  flex-shrink: 0;
+}
+
+.carName {
+  font-size: var(--font-size-body);
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 2px;
+}
+
+.carDetails {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  font-size: var(--font-size-small);
+  color: var(--text-secondary);
+}
+
+.carPlate {
+  background: var(--bg-secondary);
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-family: monospace;
+  font-size: var(--font-size-caption);
+  letter-spacing: 0.5px;
+  color: var(--text-primary);
+}
+
+.carActions {
+  display: flex;
+  gap: var(--spacing-sm);
+  flex-shrink: 0;
+}
+
+.carActionBtn {
+  padding: 8px 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--text-primary);
+  font-size: var(--font-size-small);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.carActionBtn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.carActionDangerBtn {
+  padding: 8px 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--error);
+  font-size: var(--font-size-small);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.carActionDangerBtn:hover {
+  border-color: var(--error);
+  background: color-mix(in srgb, var(--error) 8%, transparent);
+}
+
+/* Car Form */
+.carForm {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+}
+
+.carFormRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--spacing-md);
+}
+
+.carFormField {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.carFormField label {
+  font-size: var(--font-size-small);
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.carFormInput {
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-body);
+  color: var(--text-primary);
+  background: var(--bg-card);
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.carFormInput:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 15%, transparent);
+}
+
+.carFormActions {
+  display: flex;
+  gap: var(--spacing-sm);
+  margin-top: var(--spacing-xs);
+}
+
+/* Car Empty */
+.carEmpty {
+  text-align: center;
+  padding: var(--spacing-lg) 0;
+}
+
+.carEmptyText {
+  font-size: var(--font-size-body);
+  color: var(--text-secondary);
+  margin: 0 0 var(--spacing-md);
+}
+
+/* Tabs */
+.tabs {
+  display: flex;
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-lg);
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 0;
+}
+
+.tab {
+  padding: var(--spacing-sm) var(--spacing-lg);
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--text-secondary);
+  font-size: var(--font-size-body);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  margin-bottom: -1px;
+}
+
+.tab:hover {
+  color: var(--text-primary);
+}
+
+.tabActive {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+.badge {
+  background: var(--accent);
+  color: #fff;
+  font-size: var(--font-size-caption);
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 50px;
+  min-width: 20px;
+  text-align: center;
+}
+
+/* Trip List */
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+}
+
+.tripCard {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  transition: all var(--transition-fast);
+}
+
+.tripCard:hover {
+  border-color: var(--accent);
+}
+
+.tripHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: var(--spacing-lg) var(--spacing-lg) var(--spacing-sm);
+}
+
+.tripDestination {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  font-size: var(--font-size-h3);
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.tripDestination svg {
+  color: var(--accent);
+  flex-shrink: 0;
+}
+
+.tripStatus {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  padding: 4px 12px;
+  border-radius: 50px;
+  font-size: var(--font-size-caption);
+  font-weight: 600;
+}
+
+.statusPending {
+  background: color-mix(in srgb, #f59e0b 15%, transparent);
+  color: #f59e0b;
+}
+
+.statusConfirmed {
+  background: color-mix(in srgb, var(--success) 15%, transparent);
+  color: var(--success);
+}
+
+.statusActive {
+  background: color-mix(in srgb, var(--accent) 15%, transparent);
+  color: var(--accent);
+}
+
+.statusCompleted {
+  background: color-mix(in srgb, #6b7280 15%, transparent);
+  color: #6b7280;
+}
+
+.statusCancelled {
+  background: color-mix(in srgb, var(--error) 15%, transparent);
+  color: var(--error);
+}
+
+.tripDetails {
+  padding: 0 var(--spacing-lg) var(--spacing-sm);
+}
+
+.tripDetailRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--spacing-xs) 0;
+  font-size: var(--font-size-small);
+  color: var(--text-secondary);
+}
+
+.tripDetailValue {
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.tripPrice {
+  font-size: var(--font-size-body);
+  font-weight: 700;
+  color: var(--success);
+}
+
+.tripActions {
+  display: flex;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-sm) var(--spacing-lg) var(--spacing-lg);
+  border-top: 1px solid var(--border);
+}
+
+/* Empty State */
+.emptyState {
+  text-align: center;
+  padding: var(--spacing-3xl) 0;
+}
+
+.emptyIcon {
+  width: 80px;
+  height: 80px;
+  margin: 0 auto var(--spacing-lg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-card);
+  border-radius: 50%;
+  color: var(--text-secondary);
+  opacity: 0.4;
+}
+
+.emptyTitle {
+  font-size: var(--font-size-h3);
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: var(--spacing-sm);
+}
+
+.emptyText {
+  font-size: var(--font-size-body);
+  color: var(--text-secondary);
+  margin-bottom: var(--spacing-lg);
+}
+
+/* Loading */
+.loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 300px;
+  gap: var(--spacing-md);
+  color: var(--text-secondary);
+}
+
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Bottom Nav */
+.bottomNav {
+  margin-top: var(--spacing-xl);
+  padding-top: var(--spacing-lg);
+  border-top: 1px solid var(--border);
+}
+
+.backLink {
+  background: none;
+  border: none;
+  color: var(--accent);
+  font-size: var(--font-size-body);
+  cursor: pointer;
+  padding: 0;
+}
+
+.backLink:hover {
+  text-decoration: underline;
+}
+
+/* Mobile */
+@media (max-width: 768px) {
+  .header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--spacing-md);
+  }
+
+  .title {
+    font-size: var(--font-size-h3);
+  }
+
+  .carInfo {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .carActions {
+    width: 100%;
+    justify-content: flex-end;
+  }
+
+  .carFormRow {
+    grid-template-columns: 1fr;
+  }
+
+  .tabs {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .tab {
+    white-space: nowrap;
+    padding: var(--spacing-sm) var(--spacing-md);
+  }
+
+  .tripHeader {
+    flex-direction: column;
+    gap: var(--spacing-sm);
+    padding: var(--spacing-md) var(--spacing-md) var(--spacing-xs);
+  }
+
+  .tripDetails {
+    padding: 0 var(--spacing-md) var(--spacing-xs);
+  }
+
+  .tripActions {
+    padding: var(--spacing-sm) var(--spacing-md) var(--spacing-md);
+    flex-direction: column;
+  }
+
+  .tripDestination {
+    font-size: var(--font-size-body);
+  }
+}

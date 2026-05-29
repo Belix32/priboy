@@ -67,6 +67,33 @@ function clearSession(): void {
   localStorage.removeItem(AUTH_TOKEN_KEY);
 }
 
+function saveUserToRegistry(user: User): void {
+  try {
+    const key = 'priboi_users';
+    const raw = localStorage.getItem(key);
+    const users: any[] = raw ? JSON.parse(raw) : [];
+    const idx = users.findIndex((u: any) => u.id === user.id);
+    const entry = {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      phone: user.phone,
+      role: user.role || 'user',
+      is_active: true,
+      created_at: new Date().toISOString(),
+      last_login: new Date().toISOString(),
+    };
+    if (idx !== -1) {
+      users[idx] = { ...users[idx], ...entry, last_login: new Date().toISOString() };
+    } else {
+      users.push(entry);
+    }
+    localStorage.setItem(key, JSON.stringify(users));
+  } catch (e) {
+    console.error('Error saving user to registry:', e);
+  }
+}
+
 function getAdminEmail(): string {
   return import.meta.env.VITE_ADMIN_EMAIL || '';
 }
@@ -100,6 +127,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       };
       setUser(mockUser);
       saveUserSession(mockUser);
+      saveUserToRegistry(mockUser);
       return { success: true, role: mockUser.role };
     }
 
@@ -154,6 +182,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       };
       setUser(mockUser);
       saveUserSession(mockUser);
+      // Save to users registry for admin panel
+      saveUserToRegistry(mockUser);
       return { success: true };
     }
 

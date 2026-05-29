@@ -71,15 +71,28 @@ const styles = {
 
 export function Login() {
   const navigate = useNavigate();
-  const { login, isAuthenticated } = useAuth();
+  const { login, isAuthenticated, user } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (isAuthenticated) navigate('/');
-  }, [isAuthenticated, navigate]);
+    if (isAuthenticated) {
+      const role = user?.role || 'user';
+      switch (role) {
+        case 'admin':
+        case 'moderator':
+          navigate('/admin');
+          break;
+        case 'partner':
+          navigate('/partner');
+          break;
+        default:
+          navigate('/');
+      }
+    }
+  }, [isAuthenticated, navigate, user]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -93,7 +106,18 @@ export function Login() {
     setLoading(false);
 
     if (result.success) {
-      navigate('/');
+      // Role-based redirect
+      switch (result.role) {
+        case 'admin':
+        case 'moderator':
+          navigate('/admin');
+          break;
+        case 'partner':
+          navigate('/partner');
+          break;
+        default:
+          navigate('/');
+      }
     } else {
       setError(result.error || 'Ошибка входа');
     }

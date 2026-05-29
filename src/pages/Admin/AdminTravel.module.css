@@ -216,6 +216,11 @@
   color: #d97706;
 }
 
+/* Table row hover */
+.travelTableRow:hover {
+  background: color-mix(in srgb, var(--accent, #667eea) 4%, transparent);
+}
+
 /* Action buttons compact */
 .travelActions {
   display: flex;

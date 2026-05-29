@@ -11,6 +11,7 @@ const TravelBooking = lazy(() => import('./pages/Travel/TravelBooking').then(m =
 const TravelBookingConfirm = lazy(() => import('./pages/Travel/TravelBookingConfirm').then(m => ({ default: m.TravelBookingConfirm })));
 const TravelBookingSuccess = lazy(() => import('./pages/Travel/TravelBookingSuccess').then(m => ({ default: m.TravelBookingSuccess })));
 const MyTravelTrips = lazy(() => import('./pages/Travel/MyTravelTrips').then(m => ({ default: m.MyTravelTrips })));
+const UserProfile = lazy(() => import('./pages/Travel/UserProfile').then(m => ({ default: m.UserProfile })));
 const TravelMap = lazy(() => import('./pages/Travel/TravelMap').then(m => ({ default: m.TravelMap })));
 
 // Admin pages
@@ -20,6 +21,7 @@ const AdminTravelPartners = lazy(() => import('./pages/Admin/AdminTravelPartners
 const AdminTravelCars = lazy(() => import('./pages/Admin/AdminTravelCars').then(m => ({ default: m.AdminTravelCars })));
 const AdminTravelBookings = lazy(() => import('./pages/Admin/AdminTravelBookings').then(m => ({ default: m.AdminTravelBookings })));
 const AdminTravelStorage = lazy(() => import('./pages/Admin/AdminTravelStorage').then(m => ({ default: m.AdminTravelStorage })));
+const AdminUsers = lazy(() => import('./pages/Admin/AdminUsers').then(m => ({ default: m.AdminUsers })));
 
 // Partner pages
 const PartnerDashboard = lazy(() => import('./pages/Partner/PartnerDashboard').then(m => ({ default: m.PartnerDashboard })));
@@ -73,6 +75,7 @@ export default function App() {
             <Route path="/travel/booking/confirm" element={<TravelBookingConfirm />} />
             <Route path="/travel/booking/success" element={<TravelBookingSuccess />} />
             <Route path="/travel/my-trips" element={<MyTravelTrips />} />
+            <Route path="/travel/profile" element={<UserProfile />} />
             <Route path="/travel/map" element={<TravelMap />} />
 
             {/* Admin pages */}
@@ -82,6 +85,7 @@ export default function App() {
             <Route path="/admin/cars" element={<AdminTravelCars />} />
             <Route path="/admin/bookings" element={<AdminTravelBookings />} />
             <Route path="/admin/storage" element={<AdminTravelStorage />} />
+            <Route path="/admin/users" element={<AdminUsers />} />
 
             {/* Partner pages */}
             <Route path="/partner" element={<PartnerDashboard />} />
