@@ -52,15 +52,29 @@ export {
   getTravelBookingById,
   updateTravelBookingStatus,
   cancelTravelBooking,
+  updateTravelBookingPaymentStatus,
   checkCarAvailability,
   getAllTravelBookingsAdmin,
   getAdminTravelStats,
+  getAdminAnalytics,
 
   // Storage
   createStorageRecord,
   getBookingStorage,
   updateStorageStatus,
   getAllStorageAdmin,
+
+  // Admin profiles & promos
+  getAllProfilesAdmin,
+  updateProfileAdmin,
+  getAllPromoCodesAdmin,
+  createPromoCode,
+  updatePromoCode,
+  deletePromoCode,
+  getAllSeasonalDiscountsAdmin,
+  createSeasonalDiscount,
+  updateSeasonalDiscount,
+  deleteSeasonalDiscount,
 
   // Price calculation
   calculateTravelPrice,

@@ -6,7 +6,7 @@ import { TravelModal, ModalButtons } from './components/TravelModal';
 import modalStyles from './components/TravelModal.module.css';
 import styles from './AdminTravel.module.css';
 import type { TravelBooking, TravelDestination, RentalPartner, PartnerCar } from '../../lib/travel/types';
-import { getAllTravelBookingsAdmin, getAllDestinationsAdmin } from '../../lib/travel/api';
+import { getAllTravelBookingsAdmin, getAllDestinationsAdmin, updateTravelBookingStatus, updateTravelBookingPaymentStatus, cancelTravelBooking } from '../../lib/travel/api';
 
 const MOCK_DESTINATIONS: TravelDestination[] = [
   { id: 'd1', name: 'Сочи', slug: 'sochi', description: null, image: null, region: null, latitude: null, longitude: null, is_active: true, sort_order: 1, created_at: '', updated_at: '' },
@@ -157,6 +157,8 @@ export function AdminTravelBookings() {
   const { hasAdminAccess } = useAuth();
   const navigate = useNavigate();
 
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [savingId, setSavingId] = useState<string | null>(null);
   const [bookings, setBookings] = useState<TravelBooking[]>([]);
   const [allDestinations, setAllDestinations] = useState<TravelDestination[]>([]);
   const [loading, setLoading] = useState(true);
@@ -268,31 +270,75 @@ export function AdminTravelBookings() {
     }).format(amount);
   };
 
-  const handleStatusChange = (bookingId: string, newStatus: string) => {
-    setBookings((prev) =>
-      prev.map((b) =>
-        b.id === bookingId ? { ...b, status: newStatus as TravelBooking['status'] } : b
-      )
-    );
+  const handleStatusChange = async (bookingId: string, newStatus: string) => {
+    setSavingId(bookingId);
+    setActionError(null);
+    try {
+      await updateTravelBookingStatus(bookingId, newStatus as TravelBooking['status']);
+      setBookings((prev) =>
+        prev.map((b) =>
+          b.id === bookingId ? { ...b, status: newStatus as TravelBooking['status'] } : b
+        )
+      );
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : 'Ошибка сохранения');
+    } finally {
+      setSavingId(null);
+    }
   };
 
-  const handlePaymentStatusChange = (bookingId: string, newPaymentStatus: string) => {
-    setBookings((prev) =>
-      prev.map((b) =>
-        b.id === bookingId ? { ...b, payment_status: newPaymentStatus as TravelBooking['payment_status'] } : b
-      )
-    );
+  const handlePaymentStatusChange = async (bookingId: string, newPaymentStatus: string) => {
+    setSavingId(bookingId);
+    setActionError(null);
+    try {
+      await updateTravelBookingPaymentStatus(bookingId, newPaymentStatus as TravelBooking['payment_status']);
+      setBookings((prev) =>
+        prev.map((b) =>
+          b.id === bookingId ? { ...b, payment_status: newPaymentStatus as TravelBooking['payment_status'] } : b
+        )
+      );
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : 'Ошибка сохранения');
+    } finally {
+      setSavingId(null);
+    }
   };
 
-  const handleCancelBooking = (bookingId: string) => {
+  const handleCancelBooking = async (bookingId: string) => {
     if (!confirm('Вы уверены, что хотите отменить бронирование?')) return;
-    handleStatusChange(bookingId, 'cancelled');
+    setSavingId(bookingId);
+    setActionError(null);
+    try {
+      await cancelTravelBooking(bookingId);
+      setBookings((prev) =>
+        prev.map((b) =>
+          b.id === bookingId ? { ...b, status: 'cancelled' as const } : b
+        )
+      );
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : 'Ошибка отмены');
+    } finally {
+      setSavingId(null);
+    }
   };
 
-  const handleRefund = (bookingId: string) => {
+  const handleRefund = async (bookingId: string) => {
     if (!confirm('Вы уверены, что хотите сделать возврат?')) return;
-    handlePaymentStatusChange(bookingId, 'refunded');
-    handleStatusChange(bookingId, 'cancelled');
+    setSavingId(bookingId);
+    setActionError(null);
+    try {
+      await updateTravelBookingPaymentStatus(bookingId, 'refunded');
+      await cancelTravelBooking(bookingId);
+      setBookings((prev) =>
+        prev.map((b) =>
+          b.id === bookingId ? { ...b, payment_status: 'refunded' as const, status: 'cancelled' as const } : b
+        )
+      );
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : 'Ошибка возврата');
+    } finally {
+      setSavingId(null);
+    }
   };
 
   if (loading) {

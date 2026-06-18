@@ -5,113 +5,20 @@ import { AdminLayout } from './components/AdminLayout';
 import { TravelModal, ModalButtons } from './components/TravelModal';
 import modalStyles from './components/TravelModal.module.css';
 import styles from './AdminTravel.module.css';
+import type { PromoCode, SeasonalDiscount } from '../../lib/travel/types';
+import {
+  getAllPromoCodesAdmin,
+  getAllSeasonalDiscountsAdmin,
+  createPromoCode,
+  updatePromoCode,
+  deletePromoCode,
+  createSeasonalDiscount,
+  updateSeasonalDiscount,
+  deleteSeasonalDiscount,
+  getAllDestinationsAdmin,
+} from '../../lib/travel/api';
 
-// ============================================================================
-// Types
-// ============================================================================
-
-interface PromoCode {
-  id: string;
-  code: string;
-  discount_type: 'percent' | 'fixed';
-  discount_value: number;
-  min_order_amount: number;
-  max_uses: number;
-  used_count: number;
-  valid_from: string;
-  valid_to: string;
-  is_active: boolean;
-  description: string;
-  created_at: string;
-}
-
-interface SeasonalDiscount {
-  id: string;
-  name: string;
-  season: string;
-  discount_percent: number;
-  date_from: string;
-  date_to: string;
-  destinations: string[];
-  is_active: boolean;
-  created_at: string;
-}
-
-// ============================================================================
-// Mock data
-// ============================================================================
-
-const PROMOS_KEY = 'priboi_admin_promos';
-
-const MOCK_PROMOS: PromoCode[] = [
-  {
-    id: 'pr1', code: 'MORE2025', discount_type: 'percent', discount_value: 10,
-    min_order_amount: 5000, max_uses: 100, used_count: 23,
-    valid_from: '2025-06-01', valid_to: '2025-08-31',
-    is_active: true, description: 'Скидка 10% на летний сезон', created_at: '2025-05-15',
-  },
-  {
-    id: 'pr2', code: 'FIRSTTRIP', discount_type: 'percent', discount_value: 15,
-    min_order_amount: 3000, max_uses: 50, used_count: 12,
-    valid_from: '2025-01-01', valid_to: '2025-12-31',
-    is_active: true, description: 'Скидка 15% для новых клиентов', created_at: '2025-01-01',
-  },
-  {
-    id: 'pr3', code: 'SOCHI2000', discount_type: 'fixed', discount_value: 2000,
-    min_order_amount: 10000, max_uses: 30, used_count: 5,
-    valid_from: '2025-07-01', valid_to: '2025-09-30',
-    is_active: true, description: '2000 ₽ на аренду в Сочи', created_at: '2025-06-01',
-  },
-  {
-    id: 'pr4', code: 'WELCOME', discount_type: 'percent', discount_value: 5,
-    min_order_amount: 0, max_uses: 200, used_count: 45,
-    valid_from: '2025-01-01', valid_to: '2025-12-31',
-    is_active: false, description: 'Приветственная скидка 5%', created_at: '2025-01-10',
-  },
-  {
-    id: 'pr5', code: 'LONGTRIP', discount_type: 'percent', discount_value: 20,
-    min_order_amount: 20000, max_uses: 20, used_count: 3,
-    valid_from: '2025-06-15', valid_to: '2025-09-15',
-    is_active: true, description: '20% на аренду от 7 дней', created_at: '2025-06-10',
-  },
-];
-
-const MOCK_SEASONS: SeasonalDiscount[] = [
-  {
-    id: 's1', name: 'Высокий сезон', season: 'Лето',
-    discount_percent: 0, date_from: '2025-06-01', date_to: '2025-08-31',
-    destinations: ['d1', 'd2', 'd3'], is_active: true, created_at: '2025-01-15',
-  },
-  {
-    id: 's2', name: 'Бархатный сезон', season: 'Осень',
-    discount_percent: 15, date_from: '2025-09-01', date_to: '2025-10-15',
-    destinations: ['d1', 'd3'], is_active: true, created_at: '2025-02-01',
-  },
-  {
-    id: 's3', name: 'Низкий сезон', season: 'Зима',
-    discount_percent: 25, date_from: '2025-11-01', date_to: '2026-03-31',
-    destinations: ['d1', 'd2', 'd3', 'd4'], is_active: true, created_at: '2025-03-01',
-  },
-  {
-    id: 's4', name: 'Весенние скидки', season: 'Весна',
-    discount_percent: 10, date_from: '2026-03-01', date_to: '2026-05-31',
-    destinations: ['d1', 'd2'], is_active: false, created_at: '2025-04-01',
-  },
-];
-
-const DESTINATION_NAMES: Record<string, string> = {
-  d1: 'Сочи', d2: 'Анапа', d3: 'Геленджик', d4: 'Новороссийск',
-};
-
-// ============================================================================
-// Helpers
-// ============================================================================
-
-function generateId(): string {
-  return Date.now().toString(36) + Math.random().toString(36).substr(2, 5);
-}
-
-function formatDate(dateStr: string): string {
+function formatDate(dateStr: string | null | undefined): string {
   if (!dateStr) return '-';
   return new Date(dateStr).toLocaleDateString('ru-RU', {
     day: 'numeric', month: 'short', year: 'numeric',
@@ -149,17 +56,21 @@ export function AdminPromotions() {
     destinations: [] as string[], is_active: true,
   });
 
+  const [destinations, setDestinations] = useState<{ id: string; name: string }[]>([]);
+
   if (!hasAdminAccess) {
     return <Navigate to="/admin-login" />;
   }
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setPromos(MOCK_PROMOS);
-      setSeasons(MOCK_SEASONS);
-      setLoading(false);
-    }, 300);
-    return () => clearTimeout(timer);
+    Promise.all([getAllPromoCodesAdmin(), getAllSeasonalDiscountsAdmin(), getAllDestinationsAdmin()]).then(
+      ([promoData, seasonData, destData]) => {
+        setPromos(promoData);
+        setSeasons(seasonData);
+        setDestinations(destData.map((d) => ({ id: d.id, name: d.name })));
+        setLoading(false);
+      },
+    );
   }, []);
 
   const filteredPromos = useMemo(() => {
@@ -168,7 +79,7 @@ export function AdminPromotions() {
     return promos.filter(
       (p) =>
         p.code.toLowerCase().includes(q) ||
-        p.description.toLowerCase().includes(q)
+        (p.description || '').toLowerCase().includes(q)
     );
   }, [promos, searchQuery]);
 
@@ -179,69 +90,75 @@ export function AdminPromotions() {
     return { total: promos.length, active, totalUses, activeSeasons };
   }, [promos, seasons]);
 
-  const handleTogglePromo = (id: string) => {
+  const handleTogglePromo = async (id: string) => {
+    const item = promos.find((p) => p.id === id);
+    if (!item) return;
+    await updatePromoCode(id, { is_active: !item.is_active });
     setPromos((prev) =>
       prev.map((p) => (p.id === id ? { ...p, is_active: !p.is_active } : p))
     );
   };
 
-  const handleDeletePromo = (id: string) => {
+  const handleDeletePromo = async (id: string) => {
+    await deletePromoCode(id);
     setPromos((prev) => prev.filter((p) => p.id !== id));
   };
 
-  const handleAddPromo = () => {
-    const newPromo: PromoCode = {
-      id: generateId(),
-      code: promoForm.code,
+  const handleAddPromo = async () => {
+    const created = await createPromoCode({
+      code: promoForm.code.toUpperCase(),
       discount_type: promoForm.discount_type,
       discount_value: promoForm.discount_value,
       min_order_amount: promoForm.min_order_amount,
       max_uses: promoForm.max_uses,
-      used_count: 0,
-      valid_from: promoForm.valid_from,
-      valid_to: promoForm.valid_to,
+      valid_from: promoForm.valid_from || null,
+      valid_to: promoForm.valid_to || null,
       is_active: promoForm.is_active,
-      description: promoForm.description,
-      created_at: new Date().toISOString().split('T')[0],
-    };
-    setPromos((prev) => [newPromo, ...prev]);
-    setAddPromoOpen(false);
-    setPromoForm({ code: '', discount_type: 'percent', discount_value: 10, min_order_amount: 0, max_uses: 100, valid_from: '', valid_to: '', description: '', is_active: true });
+      description: promoForm.description || null,
+    });
+    if (created) {
+      setPromos((prev) => [created, ...prev]);
+      setAddPromoOpen(false);
+      setPromoForm({ code: '', discount_type: 'percent', discount_value: 10, min_order_amount: 0, max_uses: 100, valid_from: '', valid_to: '', description: '', is_active: true });
+    }
   };
 
-  const handleToggleSeason = (id: string) => {
+  const handleToggleSeason = async (id: string) => {
+    const item = seasons.find((s) => s.id === id);
+    if (!item) return;
+    await updateSeasonalDiscount(id, { is_active: !item.is_active });
     setSeasons((prev) =>
       prev.map((s) => (s.id === id ? { ...s, is_active: !s.is_active } : s))
     );
   };
 
-  const handleDeleteSeason = (id: string) => {
+  const handleDeleteSeason = async (id: string) => {
+    await deleteSeasonalDiscount(id);
     setSeasons((prev) => prev.filter((s) => s.id !== id));
   };
 
-  const handleAddSeason = () => {
-    const seasonName = seasonForm.name;
+  const handleAddSeason = async () => {
+    const month = seasonForm.date_from?.split('-')[1] || '06';
     const seasonNames: Record<string, string> = {
       '06': 'Лето', '07': 'Лето', '08': 'Лето',
       '09': 'Осень', '10': 'Осень', '11': 'Осень',
       '12': 'Зима', '01': 'Зима', '02': 'Зима',
       '03': 'Весна', '04': 'Весна', '05': 'Весна',
     };
-    const month = seasonForm.date_from?.split('-')[1] || '06';
-    const newSeason: SeasonalDiscount = {
-      id: generateId(),
+    const created = await createSeasonalDiscount({
       name: seasonForm.name,
       season: seasonNames[month] || 'Лето',
       discount_percent: seasonForm.discount_percent,
       date_from: seasonForm.date_from,
       date_to: seasonForm.date_to,
-      destinations: seasonForm.destinations,
+      destination_ids: seasonForm.destinations,
       is_active: seasonForm.is_active,
-      created_at: new Date().toISOString().split('T')[0],
-    };
-    setSeasons((prev) => [...prev, newSeason]);
-    setAddSeasonOpen(false);
-    setSeasonForm({ name: '', discount_percent: 0, date_from: '', date_to: '', destinations: [], is_active: true });
+    });
+    if (created) {
+      setSeasons((prev) => [...prev, created]);
+      setAddSeasonOpen(false);
+      setSeasonForm({ name: '', discount_percent: 0, date_from: '', date_to: '', destinations: [], is_active: true });
+    }
   };
 
   if (loading) {
@@ -437,9 +354,9 @@ export function AdminPromotions() {
                       📅 {formatDate(season.date_from)} — {formatDate(season.date_to)}
                     </div>
                     <div className={styles.seasonDestinations}>
-                      {season.destinations.map((d) => (
+                      {season.destination_ids.map((d) => (
                         <span key={d} className={styles.seasonDestBadge}>
-                          {DESTINATION_NAMES[d] || d}
+                          {destinations.find((x) => x.id === d)?.name || d}
                         </span>
                       ))}
                     </div>
@@ -635,7 +552,7 @@ export function AdminPromotions() {
             <div className={modalStyles.formGroup}>
               <label className={modalStyles.formLabel}>Направления</label>
               <div className={modalStyles.checkboxGroup}>
-                {Object.entries(DESTINATION_NAMES).map(([id, name]) => (
+                {destinations.map(({ id, name }) => (
                   <label key={id} className={modalStyles.formCheckbox}>
                     <input
                       type="checkbox"

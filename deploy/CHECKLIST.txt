@@ -26,8 +26,16 @@ GitHub:
 3. Вставьте и нажмите Run
 4. Должно появиться: status = "Прибой v2 deployed OK"
 
--- Supabase Auth: Authentication → Providers → Email → disable "Confirm email"
--- so users are logged in immediately after registration.
+-- Supabase Auth (ОБЯЗАТЕЛЬНО для регистрации):
+--   Authentication → Providers → Email
+--     ✓ Enable Email provider — ВКЛ
+--     ✓ Allow new users to sign up — ВКЛ
+--     ✗ Confirm email — ВЫКЛ (вход сразу после регистрации)
+--   Authentication → Settings
+--     ✓ Allow new users to sign up — ВКЛ
+--
+-- Если отключить Email provider или sign up — на сайте будет
+-- «Регистрация отключена в Supabase».
 
 
 ШАГ 2 — Vercel (Environment Variables)

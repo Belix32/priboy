@@ -25,6 +25,10 @@ const AdminTravelPartners = lazy(() => import('./pages/Admin/AdminTravelPartners
 const AdminTravelCars = lazy(() => import('./pages/Admin/AdminTravelCars').then(m => ({ default: m.AdminTravelCars })));
 const AdminTravelBookings = lazy(() => import('./pages/Admin/AdminTravelBookings').then(m => ({ default: m.AdminTravelBookings })));
 const AdminTravelStorage = lazy(() => import('./pages/Admin/AdminTravelStorage').then(m => ({ default: m.AdminTravelStorage })));
+const AdminTravelLocations = lazy(() => import('./pages/Admin/AdminTravelLocations').then(m => ({ default: m.AdminTravelLocations })));
+const AdminAnalytics = lazy(() => import('./pages/Admin/AdminAnalytics').then(m => ({ default: m.AdminAnalytics })));
+const AdminPromotions = lazy(() => import('./pages/Admin/AdminPromotions').then(m => ({ default: m.AdminPromotions })));
+const AdminSettings = lazy(() => import('./pages/Admin/AdminSettings').then(m => ({ default: m.AdminSettings })));
 const AdminUsers = lazy(() => import('./pages/Admin/AdminUsers').then(m => ({ default: m.AdminUsers })));
 
 const PartnerDashboard = lazy(() => import('./pages/Partner/PartnerDashboard').then(m => ({ default: m.PartnerDashboard })));
@@ -91,6 +95,10 @@ export default function App() {
             <Route path="/admin/cars" element={<ProtectedAdmin><AdminTravelCars /></ProtectedAdmin>} />
             <Route path="/admin/bookings" element={<ProtectedAdmin><AdminTravelBookings /></ProtectedAdmin>} />
             <Route path="/admin/storage" element={<ProtectedAdmin><AdminTravelStorage /></ProtectedAdmin>} />
+            <Route path="/admin/locations" element={<ProtectedAdmin><AdminTravelLocations /></ProtectedAdmin>} />
+            <Route path="/admin/analytics" element={<ProtectedAdmin><AdminAnalytics /></ProtectedAdmin>} />
+            <Route path="/admin/promotions" element={<ProtectedAdmin><AdminPromotions /></ProtectedAdmin>} />
+            <Route path="/admin/settings" element={<ProtectedAdmin><AdminSettings /></ProtectedAdmin>} />
             <Route path="/admin/users" element={<ProtectedAdmin><AdminUsers /></ProtectedAdmin>} />
 
             <Route path="/partner" element={<ProtectedPartner><PartnerDashboard /></ProtectedPartner>} />

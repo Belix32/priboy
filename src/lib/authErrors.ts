@@ -30,8 +30,14 @@ export function mapAuthError(error: AuthError | Error | null | undefined): strin
     return 'Ошибка конфигурации Supabase. Проверьте VITE_SUPABASE_ANON_KEY на Vercel';
   }
 
-  if (message.includes('signup') && message.includes('disabled')) {
-    return 'Регистрация временно отключена';
+  if (
+    message.includes('signups not allowed') ||
+    message.includes('email signups are disabled') ||
+    (message.includes('signup') && message.includes('disabled')) ||
+    message.includes('email_provider_disabled') ||
+    message.includes('email logins are disabled')
+  ) {
+    return 'Email-провайдер отключён в Supabase. Включите: Authentication → Sign In / Providers → Email → Enable Email provider. Confirm email — OFF.';
   }
 
   if (import.meta.env.DEV) {

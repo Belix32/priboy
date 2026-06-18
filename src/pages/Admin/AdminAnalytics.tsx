@@ -3,82 +3,8 @@ import { Navigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { AdminLayout } from './components/AdminLayout';
 import styles from './AdminTravel.module.css';
-
-// ============================================================================
-// Types
-// ============================================================================
-
-interface MonthlyRevenue {
-  month: string;
-  label: string;
-  revenue: number;
-  bookings: number;
-}
-
-interface TopDestination {
-  name: string;
-  bookings: number;
-  revenue: number;
-  percentage: number;
-}
-
-interface TopPartner {
-  name: string;
-  bookings: number;
-  revenue: number;
-  cars: number;
-  rating: number;
-}
-
-interface FleetStats {
-  total: number;
-  available: number;
-  rented: number;
-  maintenance: number;
-  utilization: number;
-}
-
-// ============================================================================
-// Mock data
-// ============================================================================
-
-const MONTHLY_DATA: MonthlyRevenue[] = [
-  { month: '2025-01', label: 'Янв', revenue: 180000, bookings: 8 },
-  { month: '2025-02', label: 'Фев', revenue: 150000, bookings: 6 },
-  { month: '2025-03', label: 'Мар', revenue: 220000, bookings: 10 },
-  { month: '2025-04', label: 'Апр', revenue: 380000, bookings: 18 },
-  { month: '2025-05', label: 'Май', revenue: 520000, bookings: 25 },
-  { month: '2025-06', label: 'Июн', revenue: 780000, bookings: 35 },
-  { month: '2025-07', label: 'Июл', revenue: 920000, bookings: 42 },
-  { month: '2025-08', label: 'Авг', revenue: 1050000, bookings: 48 },
-  { month: '2025-09', label: 'Сен', revenue: 640000, bookings: 28 },
-  { month: '2025-10', label: 'Окт', revenue: 310000, bookings: 14 },
-  { month: '2025-11', label: 'Ноя', revenue: 200000, bookings: 9 },
-  { month: '2025-12', label: 'Дек', revenue: 260000, bookings: 11 },
-];
-
-const TOP_DESTINATIONS: TopDestination[] = [
-  { name: 'Сочи', bookings: 120, revenue: 2850000, percentage: 38 },
-  { name: 'Анапа', bookings: 85, revenue: 1680000, percentage: 27 },
-  { name: 'Геленджик', bookings: 62, revenue: 1420000, percentage: 20 },
-  { name: 'Новороссийск', bookings: 35, revenue: 720000, percentage: 11 },
-  { name: 'Крым', bookings: 12, revenue: 280000, percentage: 4 },
-];
-
-const TOP_PARTNERS: TopPartner[] = [
-  { name: 'Авангард-Авто', bookings: 98, revenue: 2150000, cars: 15, rating: 4.5 },
-  { name: 'Black Sea Rent', bookings: 72, revenue: 1890000, cars: 8, rating: 4.8 },
-  { name: 'Юг-Авто', bookings: 65, revenue: 1320000, cars: 12, rating: 4.2 },
-  { name: 'Море-Авто', bookings: 28, revenue: 520000, cars: 6, rating: 3.9 },
-];
-
-const FLEET_STATS: FleetStats = {
-  total: 45,
-  available: 28,
-  rented: 14,
-  maintenance: 3,
-  utilization: 62,
-};
+import { getAdminAnalytics } from '../../lib/travel/api';
+import type { AdminAnalyticsData } from '../../lib/travel/types';
 
 // ============================================================================
 // Helpers
@@ -216,31 +142,34 @@ export function AdminAnalytics() {
   const { hasAdminAccess } = useAuth();
   const [loading, setLoading] = useState(true);
   const [timeRange, setTimeRange] = useState<'year' | 'half' | 'quarter'>('year');
+  const [data, setData] = useState<AdminAnalyticsData | null>(null);
 
   if (!hasAdminAccess) {
     return <Navigate to="/admin-login" />;
   }
 
   useEffect(() => {
-    const timer = setTimeout(() => setLoading(false), 300);
-    return () => clearTimeout(timer);
+    getAdminAnalytics().then((result) => {
+      setData(result);
+      setLoading(false);
+    });
   }, []);
 
-  const filteredData = useMemo(() => {
-    if (timeRange === 'year') return MONTHLY_DATA;
-    if (timeRange === 'half') return MONTHLY_DATA.slice(-6);
-    return MONTHLY_DATA.slice(-3);
-  }, [timeRange]);
+  const monthlyData = data?.monthly || [];
 
-  const totalRevenue = useMemo(
-    () => MONTHLY_DATA.reduce((s, m) => s + m.revenue, 0),
-    []
-  );
-  const totalBookings = useMemo(
-    () => MONTHLY_DATA.reduce((s, m) => s + m.bookings, 0),
-    []
-  );
+  const filteredData = useMemo(() => {
+    if (timeRange === 'year') return monthlyData;
+    if (timeRange === 'half') return monthlyData.slice(-6);
+    return monthlyData.slice(-3);
+  }, [timeRange, monthlyData]);
+
+  const totalRevenue = data?.totals.revenue ?? 0;
+  const totalBookings = data?.totals.bookings ?? 0;
   const avgBookingValue = totalBookings > 0 ? Math.round(totalRevenue / totalBookings) : 0;
+
+  const TOP_DESTINATIONS = data?.topDestinations || [];
+  const TOP_PARTNERS = data?.topPartners || [];
+  const FLEET_STATS = data?.fleet || { total: 0, available: 0, rented: 0, maintenance: 0, utilization: 0 };
 
   if (loading) {
     return (

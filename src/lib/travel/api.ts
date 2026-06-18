@@ -16,6 +16,10 @@ import type {
   TravelBookingForm,
   UserCarInfo,
   AdminTravelStats,
+  AdminAnalyticsData,
+  AdminProfile,
+  PromoCode,
+  SeasonalDiscount,
   TravelPriceBreakdown,
 } from './types';
 
@@ -29,6 +33,8 @@ const LS_CARS = 'priboi_travel_cars';
 const LS_LOCATIONS = 'priboi_travel_locations';
 const LS_BOOKINGS = 'priboi_travel_bookings';
 const LS_STORAGE = 'priboi_travel_storage';
+const LS_PROMOS = 'priboi_promo_codes';
+const LS_SEASONS = 'priboi_seasonal_discounts';
 
 function getLocalData<T>(key: string): T[] {
   try {
@@ -1369,6 +1375,35 @@ export async function updateTravelBookingStatus(
 }
 
 /**
+ * Update travel booking payment status
+ */
+export async function updateTravelBookingPaymentStatus(
+  id: string,
+  paymentStatus: TravelBooking['payment_status'],
+): Promise<void> {
+  if (!isSupabaseConfigured()) {
+    const all = getLocalData<TravelBooking>(LS_BOOKINGS);
+    const idx = all.findIndex((b) => b.id === id);
+    if (idx === -1) throw new Error('Бронирование не найдено');
+    all[idx].payment_status = paymentStatus;
+    all[idx].updated_at = new Date().toISOString();
+    setLocalData(LS_BOOKINGS, all);
+    return;
+  }
+
+  const supabase = getSupabaseClient();
+  const { error } = await supabase
+    .from('travel_bookings')
+    .update({ payment_status: paymentStatus, updated_at: new Date().toISOString() })
+    .eq('id', id);
+
+  if (error) {
+    console.error('Error updating payment status:', error);
+    throw new Error(error.message);
+  }
+}
+
+/**
  * Cancel a travel booking
  */
 export async function cancelTravelBooking(id: string): Promise<void> {
@@ -1852,4 +1887,350 @@ export async function markStorageCheckOut(storageId: string): Promise<void> {
     .update({ status: 'completed', actual_check_out: new Date().toISOString() })
     .eq('id', storageId);
   if (error) console.error('Error marking storage check-out:', error);
+}
+
+// ============================================================================
+// 9. ADMIN — PROFILES, ANALYTICS, PROMOTIONS
+// ============================================================================
+
+export async function getAllProfilesAdmin(): Promise<AdminProfile[]> {
+  if (!isSupabaseConfigured()) {
+    return [];
+  }
+
+  const supabase = getSupabaseClient();
+  const { data, error } = await supabase.rpc('get_admin_profiles');
+
+  if (error) {
+    console.error('Error fetching admin profiles:', error);
+    return [];
+  }
+
+  return (data as AdminProfile[]) || [];
+}
+
+export async function updateProfileAdmin(
+  profileId: string,
+  updates: { role?: AdminProfile['role']; partner_id?: string | null; name?: string; phone?: string },
+): Promise<void> {
+  if (!isSupabaseConfigured()) {
+    return;
+  }
+
+  const supabase = getSupabaseClient();
+  const dbUpdates: Record<string, unknown> = {};
+  if (updates.role !== undefined) dbUpdates.role = updates.role;
+  if (updates.partner_id !== undefined) dbUpdates.partner_id = updates.partner_id;
+  if (updates.name !== undefined) dbUpdates.name = updates.name;
+  if (updates.phone !== undefined) dbUpdates.phone = updates.phone;
+
+  const { error } = await supabase.from('profiles').update(dbUpdates).eq('id', profileId);
+
+  if (error) {
+    console.error('Error updating profile:', error);
+    throw new Error(error.message);
+  }
+}
+
+export async function getAdminAnalytics(): Promise<AdminAnalyticsData> {
+  const [bookings, cars, partners, destinations] = await Promise.all([
+    getAllTravelBookingsAdmin(),
+    getAllCarsAdmin(),
+    getAllPartnersAdmin(),
+    getAllDestinationsAdmin(),
+  ]);
+
+  const paid = bookings.filter((b) => b.payment_status === 'paid');
+  const monthMap = new Map<string, { revenue: number; bookings: number }>();
+  const monthLabels = ['Янв', 'Фев', 'Мар', 'Апр', 'Май', 'Июн', 'Июл', 'Авг', 'Сен', 'Окт', 'Ноя', 'Дек'];
+
+  for (const b of bookings) {
+    const d = new Date(b.created_at);
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    const entry = monthMap.get(key) || { revenue: 0, bookings: 0 };
+    entry.bookings += 1;
+    if (b.payment_status === 'paid') entry.revenue += b.total_price;
+    monthMap.set(key, entry);
+  }
+
+  const monthly = Array.from(monthMap.entries())
+    .sort(([a], [b]) => a.localeCompare(b))
+    .slice(-12)
+    .map(([month, data]) => ({
+      month,
+      label: monthLabels[parseInt(month.split('-')[1], 10) - 1] || month,
+      revenue: data.revenue,
+      bookings: data.bookings,
+    }));
+
+  const destStats = new Map<string, { name: string; bookings: number; revenue: number }>();
+  for (const b of bookings) {
+    const id = b.destination_id;
+    const name = b.destination?.name || destinations.find((d) => d.id === id)?.name || '—';
+    const entry = destStats.get(id) || { name, bookings: 0, revenue: 0 };
+    entry.bookings += 1;
+    if (b.payment_status === 'paid') entry.revenue += b.total_price;
+    destStats.set(id, entry);
+  }
+
+  const totalDestRevenue = Array.from(destStats.values()).reduce((s, d) => s + d.revenue, 0) || 1;
+  const topDestinations = Array.from(destStats.values())
+    .sort((a, b) => b.revenue - a.revenue)
+    .slice(0, 5)
+    .map((d) => ({
+      ...d,
+      percentage: Math.round((d.revenue / totalDestRevenue) * 100),
+    }));
+
+  const partnerStats = new Map<string, { name: string; bookings: number; revenue: number; cars: number; rating: number }>();
+  for (const p of partners) {
+    partnerStats.set(p.id, { name: p.name, bookings: 0, revenue: 0, cars: 0, rating: p.rating });
+  }
+  for (const c of cars) {
+    const entry = partnerStats.get(c.partner_id);
+    if (entry) entry.cars += 1;
+  }
+  for (const b of bookings) {
+    const entry = partnerStats.get(b.partner_id);
+    if (entry) {
+      entry.bookings += 1;
+      if (b.payment_status === 'paid') entry.revenue += b.total_price;
+    }
+  }
+
+  const topPartners = Array.from(partnerStats.values())
+    .sort((a, b) => b.revenue - a.revenue)
+    .slice(0, 5);
+
+  const activeCars = cars.filter((c) => c.is_active);
+  const rented = bookings.filter((b) => b.status === 'active' || b.status === 'confirmed').length;
+  const available = activeCars.filter((c) => c.is_available).length;
+  const maintenance = activeCars.filter((c) => !c.is_available && c.is_active).length;
+  const utilization = activeCars.length
+    ? Math.round((rented / activeCars.length) * 100)
+    : 0;
+
+  return {
+    monthly,
+    topDestinations,
+    topPartners,
+    fleet: {
+      total: activeCars.length,
+      available,
+      rented: Math.min(rented, activeCars.length),
+      maintenance,
+      utilization,
+    },
+    totals: {
+      revenue: paid.reduce((s, b) => s + b.total_price, 0),
+      commission: paid.reduce((s, b) => s + b.commission_price, 0),
+      bookings: bookings.length,
+    },
+  };
+}
+
+function mapPromoRow(row: Record<string, unknown>): PromoCode {
+  return {
+    id: row.id as string,
+    code: row.code as string,
+    discount_type: row.discount_type as 'percent' | 'fixed',
+    discount_value: Number(row.discount_value),
+    min_order_amount: Number(row.min_order_amount ?? 0),
+    max_uses: Number(row.max_uses ?? 100),
+    used_count: Number(row.used_count ?? 0),
+    valid_from: (row.valid_from as string) || null,
+    valid_to: (row.valid_to as string) || null,
+    is_active: Boolean(row.is_active),
+    description: (row.description as string) || null,
+    created_at: row.created_at as string,
+    updated_at: row.updated_at as string,
+  };
+}
+
+function mapSeasonRow(row: Record<string, unknown>): SeasonalDiscount {
+  return {
+    id: row.id as string,
+    name: row.name as string,
+    season: (row.season as string) || null,
+    discount_percent: Number(row.discount_percent),
+    date_from: row.date_from as string,
+    date_to: row.date_to as string,
+    destination_ids: (row.destination_ids as string[]) || [],
+    is_active: Boolean(row.is_active),
+    created_at: row.created_at as string,
+    updated_at: row.updated_at as string,
+  };
+}
+
+export async function getAllPromoCodesAdmin(): Promise<PromoCode[]> {
+  if (!isSupabaseConfigured()) {
+    return getLocalData<PromoCode>(LS_PROMOS);
+  }
+
+  const supabase = getSupabaseClient();
+  const { data, error } = await supabase
+    .from('promo_codes')
+    .select('*')
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.error('Error fetching promos:', error);
+    return [];
+  }
+
+  return (data || []).map(mapPromoRow);
+}
+
+export async function createPromoCode(data: Partial<PromoCode>): Promise<PromoCode | null> {
+  if (!isSupabaseConfigured()) {
+    const all = getLocalData<PromoCode>(LS_PROMOS);
+    const item: PromoCode = {
+      id: generateId(),
+      code: data.code || '',
+      discount_type: data.discount_type || 'percent',
+      discount_value: data.discount_value || 10,
+      min_order_amount: data.min_order_amount ?? 0,
+      max_uses: data.max_uses ?? 100,
+      used_count: 0,
+      valid_from: data.valid_from || null,
+      valid_to: data.valid_to || null,
+      is_active: data.is_active ?? true,
+      description: data.description || null,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+    all.unshift(item);
+    setLocalData(LS_PROMOS, all);
+    return item;
+  }
+
+  const supabase = getSupabaseClient();
+  const { data: result, error } = await supabase
+    .from('promo_codes')
+    .insert({
+      code: data.code,
+      discount_type: data.discount_type,
+      discount_value: data.discount_value,
+      min_order_amount: data.min_order_amount ?? 0,
+      max_uses: data.max_uses ?? 100,
+      valid_from: data.valid_from || null,
+      valid_to: data.valid_to || null,
+      is_active: data.is_active ?? true,
+      description: data.description || null,
+    })
+    .select()
+    .single();
+
+  if (error) throw new Error(error.message);
+  return mapPromoRow(result);
+}
+
+export async function updatePromoCode(id: string, updates: Partial<PromoCode>): Promise<void> {
+  if (!isSupabaseConfigured()) {
+    const all = getLocalData<PromoCode>(LS_PROMOS);
+    const idx = all.findIndex((p) => p.id === id);
+    if (idx === -1) throw new Error('Промокод не найден');
+    all[idx] = { ...all[idx], ...updates, updated_at: new Date().toISOString() };
+    setLocalData(LS_PROMOS, all);
+    return;
+  }
+
+  const supabase = getSupabaseClient();
+  const { error } = await supabase.from('promo_codes').update(updates).eq('id', id);
+  if (error) throw new Error(error.message);
+}
+
+export async function deletePromoCode(id: string): Promise<void> {
+  if (!isSupabaseConfigured()) {
+    setLocalData(LS_PROMOS, getLocalData<PromoCode>(LS_PROMOS).filter((p) => p.id !== id));
+    return;
+  }
+
+  const supabase = getSupabaseClient();
+  const { error } = await supabase.from('promo_codes').delete().eq('id', id);
+  if (error) throw new Error(error.message);
+}
+
+export async function getAllSeasonalDiscountsAdmin(): Promise<SeasonalDiscount[]> {
+  if (!isSupabaseConfigured()) {
+    return getLocalData<SeasonalDiscount>(LS_SEASONS);
+  }
+
+  const supabase = getSupabaseClient();
+  const { data, error } = await supabase
+    .from('seasonal_discounts')
+    .select('*')
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.error('Error fetching seasonal discounts:', error);
+    return [];
+  }
+
+  return (data || []).map(mapSeasonRow);
+}
+
+export async function createSeasonalDiscount(data: Partial<SeasonalDiscount>): Promise<SeasonalDiscount | null> {
+  if (!isSupabaseConfigured()) {
+    const all = getLocalData<SeasonalDiscount>(LS_SEASONS);
+    const item: SeasonalDiscount = {
+      id: generateId(),
+      name: data.name || '',
+      season: data.season || null,
+      discount_percent: data.discount_percent || 10,
+      date_from: data.date_from || '',
+      date_to: data.date_to || '',
+      destination_ids: data.destination_ids || [],
+      is_active: data.is_active ?? true,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+    all.push(item);
+    setLocalData(LS_SEASONS, all);
+    return item;
+  }
+
+  const supabase = getSupabaseClient();
+  const { data: result, error } = await supabase
+    .from('seasonal_discounts')
+    .insert({
+      name: data.name,
+      season: data.season || null,
+      discount_percent: data.discount_percent,
+      date_from: data.date_from,
+      date_to: data.date_to,
+      destination_ids: data.destination_ids || [],
+      is_active: data.is_active ?? true,
+    })
+    .select()
+    .single();
+
+  if (error) throw new Error(error.message);
+  return mapSeasonRow(result);
+}
+
+export async function updateSeasonalDiscount(id: string, updates: Partial<SeasonalDiscount>): Promise<void> {
+  if (!isSupabaseConfigured()) {
+    const all = getLocalData<SeasonalDiscount>(LS_SEASONS);
+    const idx = all.findIndex((s) => s.id === id);
+    if (idx === -1) throw new Error('Скидка не найдена');
+    all[idx] = { ...all[idx], ...updates, updated_at: new Date().toISOString() };
+    setLocalData(LS_SEASONS, all);
+    return;
+  }
+
+  const supabase = getSupabaseClient();
+  const { error } = await supabase.from('seasonal_discounts').update(updates).eq('id', id);
+  if (error) throw new Error(error.message);
+}
+
+export async function deleteSeasonalDiscount(id: string): Promise<void> {
+  if (!isSupabaseConfigured()) {
+    setLocalData(LS_SEASONS, getLocalData<SeasonalDiscount>(LS_SEASONS).filter((s) => s.id !== id));
+    return;
+  }
+
+  const supabase = getSupabaseClient();
+  const { error } = await supabase.from('seasonal_discounts').delete().eq('id', id);
+  if (error) throw new Error(error.message);
 }

@@ -16,23 +16,38 @@
 }
 
 .admin-sidebar-header {
-  padding: 24px 20px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 20px 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 
-.admin-sidebar-header h2 {
-  margin: 0 0 8px 0;
-  font-size: 1.5rem;
-  color: #00d9ff;
+.admin-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.admin-brand-name {
+  font-size: 1.35rem;
+  font-weight: 700;
+  background: linear-gradient(135deg, #00d9ff 0%, #7dd3fc 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 
 .admin-badge {
-  background: rgba(0, 217, 255, 0.2);
-  color: #00d9ff;
-  padding: 4px 12px;
+  background: rgba(0, 217, 255, 0.15);
+  color: #7dd3fc;
+  padding: 3px 10px;
   border-radius: 20px;
-  font-size: 0.75rem;
+  font-size: 0.7rem;
   font-weight: 600;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.admin-nav-section {
+  margin-bottom: 4px;
 }
 
 .admin-nav {
@@ -60,22 +75,26 @@
 .admin-nav-item {
   display: flex;
   align-items: center;
-  padding: 14px 20px;
-  color: rgba(255, 255, 255, 0.7);
+  padding: 10px 16px;
+  margin: 2px 8px;
+  border-radius: 8px;
+  color: rgba(255, 255, 255, 0.65);
   text-decoration: none;
-  transition: all 0.2s;
-  gap: 12px;
+  transition: all 0.15s ease;
+  gap: 10px;
+  font-size: 0.9rem;
 }
 
 .admin-nav-item:hover {
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.08);
   color: white;
 }
 
 .admin-nav-item.active {
-  background: rgba(0, 217, 255, 0.15);
+  background: rgba(0, 217, 255, 0.12);
   color: #00d9ff;
-  border-left: 3px solid #00d9ff;
+  border-left: none;
+  box-shadow: inset 3px 0 0 #00d9ff;
 }
 
 .admin-nav-icon {
@@ -132,16 +151,26 @@
 
 .admin-header {
   background: white;
-  padding: 20px 32px;
+  padding: 16px 32px;
   display: flex;
   justify-content: space-between;
   align-items: center;
   border-bottom: 1px solid #e5e7eb;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.admin-header-breadcrumb {
+  margin: 0 0 2px;
+  font-size: 0.75rem;
+  color: #9ca3af;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 .admin-header h1 {
   margin: 0;
-  font-size: 1.5rem;
+  font-size: 1.35rem;
+  font-weight: 600;
   color: #1a1a2e;
 }
 

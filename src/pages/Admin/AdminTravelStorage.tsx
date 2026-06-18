@@ -6,7 +6,7 @@ import { TravelModal, ModalButtons } from './components/TravelModal';
 import modalStyles from './components/TravelModal.module.css';
 import styles from './AdminTravel.module.css';
 import type { CarStorage, RentalPartner } from '../../lib/travel/types';
-import { getAllStorageAdmin, getAllPartnersAdmin } from '../../lib/travel/api';
+import { getAllStorageAdmin, getAllPartnersAdmin, updateStorageStatus } from '../../lib/travel/api';
 
 const MOCK_PARTNERS: RentalPartner[] = [
   { id: 'p1', name: 'Авангард-Авто', slug: 'avangard-avto', description: null, logo: null, phone: null, email: null, website: null, is_active: true, commission_rate: 15, rating: 4.5, created_at: '', updated_at: '' },
@@ -94,6 +94,8 @@ export function AdminTravelStorage() {
   const { hasAdminAccess } = useAuth();
   const navigate = useNavigate();
 
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [savingId, setSavingId] = useState<string | null>(null);
   const [storage, setStorage] = useState<CarStorage[]>([]);
   const [partners, setPartners] = useState<RentalPartner[]>([]);
   const [loading, setLoading] = useState(true);
@@ -176,12 +178,21 @@ export function AdminTravelStorage() {
     });
   };
 
-  const handleStatusChange = (itemId: string, newStatus: string) => {
-    setStorage((prev) =>
-      prev.map((s) =>
-        s.id === itemId ? { ...s, status: newStatus as CarStorage['status'] } : s
-      )
-    );
+  const handleStatusChange = async (itemId: string, newStatus: string) => {
+    setSavingId(itemId);
+    setActionError(null);
+    try {
+      await updateStorageStatus(itemId, newStatus as CarStorage['status']);
+      setStorage((prev) =>
+        prev.map((s) =>
+          s.id === itemId ? { ...s, status: newStatus as CarStorage['status'] } : s
+        )
+      );
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : 'Ошибка сохранения');
+    } finally {
+      setSavingId(null);
+    }
   };
 
   if (loading) {

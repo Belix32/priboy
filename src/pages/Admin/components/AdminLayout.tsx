@@ -1,4 +1,4 @@
-import { NavLink, useNavigate } from 'react-router-dom';
+import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../../contexts/AuthContext';
 import './AdminLayout.css';
 
@@ -8,15 +8,63 @@ interface NavItem {
   icon: string;
 }
 
-const navItems: NavItem[] = [
-  { path: '/admin', label: 'Дашборд', icon: '🏖️' },
-  { path: '/admin/destinations', label: 'Направления', icon: '🗺️' },
-  { path: '/admin/partners', label: 'Партнёры', icon: '🏢' },
-  { path: '/admin/cars', label: 'Автомобили', icon: '🚗' },
-  { path: '/admin/bookings', label: 'Бронирования', icon: '📅' },
-  { path: '/admin/storage', label: 'Хранение', icon: '🔒' },
-  { path: '/admin/users', label: 'Пользователи', icon: '👤' },
+interface NavSection {
+  title: string;
+  items: NavItem[];
+}
+
+const navSections: NavSection[] = [
+  {
+    title: 'Обзор',
+    items: [
+      { path: '/admin', label: 'Дашборд', icon: '📊' },
+      { path: '/admin/analytics', label: 'Аналитика', icon: '📈' },
+    ],
+  },
+  {
+    title: 'Каталог',
+    items: [
+      { path: '/admin/destinations', label: 'Направления', icon: '🗺️' },
+      { path: '/admin/partners', label: 'Партнёры', icon: '🏢' },
+      { path: '/admin/locations', label: 'Локации', icon: '📍' },
+      { path: '/admin/cars', label: 'Автомобили', icon: '🚗' },
+    ],
+  },
+  {
+    title: 'Операции',
+    items: [
+      { path: '/admin/bookings', label: 'Бронирования', icon: '📅' },
+      { path: '/admin/storage', label: 'Хранение', icon: '🔒' },
+    ],
+  },
+  {
+    title: 'Маркетинг',
+    items: [
+      { path: '/admin/promotions', label: 'Промокоды', icon: '🎁' },
+    ],
+  },
+  {
+    title: 'Система',
+    items: [
+      { path: '/admin/users', label: 'Пользователи', icon: '👤' },
+      { path: '/admin/settings', label: 'Настройки', icon: '⚙️' },
+    ],
+  },
 ];
+
+const pageTitles: Record<string, string> = {
+  '/admin': 'Дашборд',
+  '/admin/analytics': 'Аналитика',
+  '/admin/destinations': 'Направления',
+  '/admin/partners': 'Партнёры',
+  '/admin/locations': 'Локации',
+  '/admin/cars': 'Автомобили',
+  '/admin/bookings': 'Бронирования',
+  '/admin/storage': 'Хранение',
+  '/admin/promotions': 'Промокоды и скидки',
+  '/admin/users': 'Пользователи',
+  '/admin/settings': 'Настройки',
+};
 
 interface AdminLayoutProps {
   children: React.ReactNode;
@@ -25,6 +73,7 @@ interface AdminLayoutProps {
 export function AdminLayout({ children }: AdminLayoutProps) {
   const { user, logout, hasAdminAccess } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const handleLogout = async () => {
     await logout();
@@ -41,25 +90,34 @@ export function AdminLayout({ children }: AdminLayoutProps) {
     );
   }
 
+  const pageTitle = pageTitles[location.pathname] || 'Панель управления';
+
   return (
     <div className="admin-layout">
       <aside className="admin-sidebar">
         <div className="admin-sidebar-header">
-          <h2>Прибой</h2>
-          <span className="admin-badge">Админ</span>
+          <div className="admin-brand">
+            <span className="admin-brand-name">Прибой</span>
+            <span className="admin-badge">Admin</span>
+          </div>
         </div>
-        
+
         <nav className="admin-nav">
-          {navItems.map((item) => (
-            <NavLink
-              key={item.path}
-              to={item.path}
-              className={({ isActive }) => `admin-nav-item ${isActive ? 'active' : ''}`}
-              end={item.path === '/admin'}
-            >
-              <span className="admin-nav-icon">{item.icon}</span>
-              <span className="admin-nav-label">{item.label}</span>
-            </NavLink>
+          {navSections.map((section) => (
+            <div key={section.title} className="admin-nav-section">
+              <div className="admin-nav-section-title">{section.title}</div>
+              {section.items.map((item) => (
+                <NavLink
+                  key={item.path}
+                  to={item.path}
+                  className={({ isActive }) => `admin-nav-item ${isActive ? 'active' : ''}`}
+                  end={item.path === '/admin'}
+                >
+                  <span className="admin-nav-icon">{item.icon}</span>
+                  <span className="admin-nav-label">{item.label}</span>
+                </NavLink>
+              ))}
+            </div>
           ))}
         </nav>
 
@@ -68,7 +126,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
             <span className="admin-user-name">{user?.name}</span>
             <span className="admin-user-email">{user?.email}</span>
           </div>
-          <button onClick={handleLogout} className="admin-logout-btn">
+          <button type="button" onClick={handleLogout} className="admin-logout-btn">
             Выйти
           </button>
         </div>
@@ -76,16 +134,17 @@ export function AdminLayout({ children }: AdminLayoutProps) {
 
       <main className="admin-main">
         <header className="admin-header">
-          <h1>Панель управления</h1>
+          <div>
+            <p className="admin-header-breadcrumb">Админ-панель</p>
+            <h1>{pageTitle}</h1>
+          </div>
           <div className="admin-header-actions">
-            <button onClick={() => navigate('/')} className="admin-back-btn">
+            <button type="button" onClick={() => navigate('/')} className="admin-back-btn">
               ← На сайт
             </button>
           </div>
         </header>
-        <div className="admin-content">
-          {children}
-        </div>
+        <div className="admin-content">{children}</div>
       </main>
     </div>
   );

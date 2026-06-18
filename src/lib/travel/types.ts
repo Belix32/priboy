@@ -213,6 +213,47 @@ export interface AdminTravelStats {
   recent_bookings: TravelBooking[];
 }
 
+export interface AdminProfile extends Profile {
+  email: string;
+}
+
+export interface PromoCode {
+  id: string;
+  code: string;
+  discount_type: 'percent' | 'fixed';
+  discount_value: number;
+  min_order_amount: number;
+  max_uses: number;
+  used_count: number;
+  valid_from: string | null;
+  valid_to: string | null;
+  is_active: boolean;
+  description: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SeasonalDiscount {
+  id: string;
+  name: string;
+  season: string | null;
+  discount_percent: number;
+  date_from: string;
+  date_to: string;
+  destination_ids: string[];
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AdminAnalyticsData {
+  monthly: { month: string; label: string; revenue: number; bookings: number }[];
+  topDestinations: { name: string; bookings: number; revenue: number; percentage: number }[];
+  topPartners: { name: string; bookings: number; revenue: number; cars: number; rating: number }[];
+  fleet: { total: number; available: number; rented: number; maintenance: number; utilization: number };
+  totals: { revenue: number; commission: number; bookings: number };
+}
+
 // ============================================================================
 // Local storage types for demo / fallback mode
 // ============================================================================
