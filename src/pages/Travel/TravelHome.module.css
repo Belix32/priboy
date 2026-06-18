@@ -137,6 +137,12 @@
   gap: var(--spacing-lg);
 }
 
+.guideLinkWrap {
+  display: flex;
+  justify-content: center;
+  margin-top: var(--spacing-xl);
+}
+
 .destinationsGrid {
   display: grid;
   grid-template-columns: repeat(5, 1fr);

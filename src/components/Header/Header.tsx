@@ -12,7 +12,7 @@ const PRIMARY_NAV = [
 ];
 
 const SECONDARY_NAV = [
-  { to: '/#how-it-works', label: 'Как работает', hash: 'how-it-works' },
+  { to: '/guide', label: 'Как работает', hash: '' },
   { to: '/map', label: 'Локации', hash: '' },
   { to: '/about', label: 'О нас', hash: '' },
   { to: '/help', label: 'Помощь', hash: '' },

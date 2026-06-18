@@ -94,6 +94,11 @@ export function TravelHome() {
               <StepCard key={step.number} {...step} />
             ))}
           </div>
+          <div className={styles.guideLinkWrap}>
+            <Button variant="secondary" onClick={() => navigate('/guide')}>
+              Подробное руководство по системе →
+            </Button>
+          </div>
         </div>
       </section>
 

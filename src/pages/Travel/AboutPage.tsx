@@ -40,11 +40,16 @@ export function AboutPage() {
         </section>
 
         <section className={infoStyles.card}>
-          <h2 className={infoStyles.cardTitle}>Как это работает</h2>
+          <h2 className={infoStyles.cardTitle}>Кратко о сервисе</h2>
           <div className={styles.stepsGrid}>
             {HOW_IT_WORKS_STEPS.map((step) => (
               <StepCard key={step.number} {...step} />
             ))}
+          </div>
+          <div className={infoStyles.ctaRow}>
+            <Button variant="primary" onClick={() => navigate('/guide')}>
+              Подробное руководство
+            </Button>
           </div>
         </section>
 
