@@ -4,7 +4,7 @@ import styles from './Footer.module.css';
 
 export function Footer() {
   return (
-    <footer className={styles.footer} id="help">
+    <footer className={styles.footer}>
       <div className={styles.container}>
         <div className={styles.grid}>
           <div className={styles.brand}>
@@ -27,13 +27,14 @@ export function Footer() {
           <div className={styles.column}>
             <h4>Компания</h4>
             <ul>
-              <li><a href="/#about">О нас</a></li>
+              <li><Link to="/about">О нас</Link></li>
+              <li><Link to="/help">Помощь</Link></li>
               <li><a href="/#how-it-works">Как это работает</a></li>
               <li><Link to="/login">Войти</Link></li>
             </ul>
           </div>
 
-          <div className={styles.column} id="about">
+          <div className={styles.column}>
             <h4>Направления</h4>
             <ul>
               <li><Link to="/search?destination=sochi">Сочи</Link></li>

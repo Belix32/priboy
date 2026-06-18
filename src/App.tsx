@@ -15,6 +15,8 @@ const TravelBookingConfirm = lazy(() => import('./pages/Travel/TravelBookingConf
 const TravelBookingSuccess = lazy(() => import('./pages/Travel/TravelBookingSuccess').then(m => ({ default: m.TravelBookingSuccess })));
 const MyTravelTrips = lazy(() => import('./pages/Travel/MyTravelTrips').then(m => ({ default: m.MyTravelTrips })));
 const UserProfile = lazy(() => import('./pages/Travel/UserProfile').then(m => ({ default: m.UserProfile })));
+const HelpPage = lazy(() => import('./pages/Travel/HelpPage').then(m => ({ default: m.HelpPage })));
+const AboutPage = lazy(() => import('./pages/Travel/AboutPage').then(m => ({ default: m.AboutPage })));
 const TravelMap = lazy(() => import('./pages/Travel/TravelMap').then(m => ({ default: m.TravelMap })));
 
 const AdminTravelDashboard = lazy(() => import('./pages/Admin/AdminTravelDashboard').then(m => ({ default: m.AdminTravelDashboard })));
@@ -78,6 +80,10 @@ export default function App() {
             <Route path="/travel/profile" element={<ProtectedAuth><UserProfile /></ProtectedAuth>} />
             <Route path="/map" element={<TravelMap />} />
             <Route path="/travel/map" element={<TravelMap />} />
+            <Route path="/help" element={<HelpPage />} />
+            <Route path="/travel/help" element={<HelpPage />} />
+            <Route path="/about" element={<AboutPage />} />
+            <Route path="/travel/about" element={<AboutPage />} />
 
             <Route path="/admin" element={<ProtectedAdmin><AdminTravelDashboard /></ProtectedAdmin>} />
             <Route path="/admin/destinations" element={<ProtectedAdmin><AdminTravelDestinations /></ProtectedAdmin>} />

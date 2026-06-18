@@ -1,0 +1,123 @@
+.introBlock {
+  max-width: 720px;
+  margin-bottom: var(--spacing-xl);
+}
+
+.intro {
+  font-size: 18px;
+  line-height: 1.7;
+  color: var(--text-primary);
+  margin: 0 0 var(--spacing-lg);
+}
+
+.mission {
+  font-size: var(--font-size-body);
+  line-height: 1.7;
+  color: var(--text-secondary);
+  margin: 0;
+  padding-left: var(--spacing-lg);
+  border-left: 3px solid var(--accent);
+}
+
+.valuesGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--spacing-lg);
+}
+
+.valueCard {
+  padding: var(--spacing-lg);
+  background: var(--bg-secondary);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-light);
+}
+
+.valueTitle {
+  font-size: var(--font-size-body);
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0 0 var(--spacing-sm);
+}
+
+.valueText {
+  margin: 0;
+  font-size: var(--font-size-small);
+  line-height: 1.6;
+  color: var(--text-secondary);
+}
+
+.stepsGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--spacing-md);
+}
+
+.destinationsIntro {
+  margin: -8px 0 var(--spacing-lg);
+  font-size: var(--font-size-small);
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+
+.destinations {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-md);
+}
+
+.destinationTag {
+  padding: 10px 18px;
+  background: var(--accent-light);
+  color: var(--accent);
+  font-size: var(--font-size-small);
+  font-weight: 600;
+  border-radius: var(--radius-full);
+}
+
+.ctaBanner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-xl);
+  padding: var(--spacing-2xl);
+  background: linear-gradient(135deg, var(--text-primary) 0%, #1e40af 100%);
+  border-radius: var(--radius-xl);
+  color: #ffffff;
+  margin-top: var(--spacing-xl);
+}
+
+.ctaTitle {
+  font-size: var(--font-size-h3);
+  font-weight: 700;
+  margin: 0 0 var(--spacing-sm);
+}
+
+.ctaText {
+  margin: 0;
+  opacity: 0.9;
+  font-size: var(--font-size-small);
+  line-height: 1.6;
+  max-width: 420px;
+}
+
+@media (max-width: 900px) {
+  .valuesGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .stepsGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .ctaBanner {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
+@media (max-width: 600px) {
+  .stepsGrid {
+    grid-template-columns: 1fr;
+  }
+}

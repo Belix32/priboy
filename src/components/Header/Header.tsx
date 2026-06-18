@@ -14,8 +14,8 @@ const PRIMARY_NAV = [
 const SECONDARY_NAV = [
   { to: '/#how-it-works', label: 'Как работает', hash: 'how-it-works' },
   { to: '/map', label: 'Локации', hash: '' },
-  { to: '/#about', label: 'О нас', hash: 'about' },
-  { to: '/#help', label: 'Помощь', hash: 'help' },
+  { to: '/about', label: 'О нас', hash: '' },
+  { to: '/help', label: 'Помощь', hash: '' },
 ];
 
 export function Header() {
