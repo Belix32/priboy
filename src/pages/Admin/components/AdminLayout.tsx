@@ -1,5 +1,6 @@
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../../contexts/AuthContext';
+import { useTheme } from '../../../contexts/ThemeContext';
 import './AdminLayout.css';
 
 interface NavItem {
@@ -72,6 +73,7 @@ interface AdminLayoutProps {
 
 export function AdminLayout({ children }: AdminLayoutProps) {
   const { user, logout, hasAdminAccess } = useAuth();
+  const { isDark, toggleTheme } = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -139,6 +141,15 @@ export function AdminLayout({ children }: AdminLayoutProps) {
             <h1>{pageTitle}</h1>
           </div>
           <div className="admin-header-actions">
+            <button
+              type="button"
+              onClick={toggleTheme}
+              className="admin-theme-btn"
+              title={isDark ? 'Светлая тема' : 'Тёмная тема'}
+              aria-label={isDark ? 'Включить светлую тему' : 'Включить тёмную тему'}
+            >
+              {isDark ? '☀️' : '🌙'}
+            </button>
             <button type="button" onClick={() => navigate('/')} className="admin-back-btn">
               ← На сайт
             </button>

@@ -120,13 +120,14 @@
 
 /* Compact table cells for travel pages */
 .travelIdCell {
-  font-family: 'Monaco', 'Menlo', monospace;
+  font-family: ui-monospace, 'SF Mono', Monaco, Menlo, monospace;
   font-size: 0.8rem;
-  color: #9ca3af;
-  background: #f3f4f6;
+  color: var(--text-secondary);
+  background: var(--bg-elevated);
   padding: 4px 8px;
   border-radius: 4px;
   white-space: nowrap;
+  border: 1px solid var(--border-light);
 }
 
 .travelTruncate {
@@ -304,19 +305,21 @@
 
 .travelFilterReset {
   padding: 10px 20px;
-  background: #f3f4f6;
-  border: none;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
   border-radius: 8px;
-  color: var(--text-secondary, #6b7280);
+  color: var(--text-secondary);
   font-size: 0.9rem;
+  font-family: inherit;
   cursor: pointer;
   transition: all 0.2s;
   white-space: nowrap;
 }
 
 .travelFilterReset:hover {
-  background: #e5e7eb;
-  color: var(--text-primary, #1a1a2e);
+  background: var(--accent-light);
+  border-color: var(--accent);
+  color: var(--accent);
 }
 
 /* Status select dropdown */
@@ -353,7 +356,53 @@
 }
 
 .travelDatesSeparator {
-  color: #9ca3af;
+  color: var(--text-muted);
+}
+
+/* Dark theme badge adjustments */
+[data-theme="dark"] .travelBadgePending {
+  background: rgba(251, 191, 36, 0.15);
+  color: #fbbf24;
+}
+
+[data-theme="dark"] .travelBadgeConfirmed {
+  background: rgba(59, 130, 246, 0.15);
+  color: #60a5fa;
+}
+
+[data-theme="dark"] .travelBadgeActive {
+  background: rgba(16, 185, 129, 0.15);
+  color: #34d399;
+}
+
+[data-theme="dark"] .travelBadgeCompleted {
+  background: rgba(148, 163, 184, 0.12);
+  color: #94a3b8;
+}
+
+[data-theme="dark"] .travelBadgeCancelled {
+  background: rgba(239, 68, 68, 0.15);
+  color: #f87171;
+}
+
+[data-theme="dark"] .travelPaymentBadgePending {
+  background: rgba(251, 191, 36, 0.15);
+  color: #fbbf24;
+}
+
+[data-theme="dark"] .travelPaymentBadgePaid {
+  background: rgba(16, 185, 129, 0.15);
+  color: #34d399;
+}
+
+[data-theme="dark"] .travelPaymentBadgeRefunded {
+  background: rgba(59, 130, 246, 0.15);
+  color: #60a5fa;
+}
+
+[data-theme="dark"] .travelStatCard {
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--border);
 }
 
 /* Rating stars */

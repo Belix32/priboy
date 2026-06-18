@@ -113,7 +113,7 @@ export function AdminUsers() {
       </div>
 
       {saveError && (
-        <div className="admin-card" style={{ marginBottom: 16, borderColor: '#fecaca', background: '#fef2f2', color: '#b91c1c' }}>
+        <div className="admin-card admin-error-banner">
           {saveError}
         </div>
       )}
@@ -205,7 +205,7 @@ export function AdminUsers() {
         )}
       </div>
 
-      <div className="admin-card" style={{ marginTop: 16, fontSize: '0.85rem', color: '#6b7280' }}>
+      <div className="admin-card admin-hint">
         Чтобы дать партнёру доступ: зарегистрируйте его на сайте → выберите роль «Партнёр» → привяжите компанию.
       </div>
     </AdminLayout>

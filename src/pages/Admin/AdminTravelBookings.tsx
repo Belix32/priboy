@@ -352,6 +352,9 @@ export function AdminTravelBookings() {
   return (
     <AdminLayout>
       <div className="admin-bookings">
+        {actionError && (
+          <div className="admin-card admin-error-banner">{actionError}</div>
+        )}
         {/* Stats */}
         <div className="admin-stats-grid">
           <div className="admin-stat-card">

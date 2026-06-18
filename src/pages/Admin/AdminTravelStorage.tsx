@@ -206,6 +206,9 @@ export function AdminTravelStorage() {
   return (
     <AdminLayout>
       <div className="admin-bookings">
+        {actionError && (
+          <div className="admin-card admin-error-banner">{actionError}</div>
+        )}
         <div className="admin-page-header">
           <h2>Управление хранением</h2>
         </div>
