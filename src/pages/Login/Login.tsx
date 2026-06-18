@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { Button } from '../../components/Button/Button';
+import { Logo } from '../../components/Logo/Logo';
 import styles from './Login.module.css';
 
 export function Login() {
@@ -25,7 +26,7 @@ export function Login() {
           navigate('/partner');
           break;
         default:
-          navigate('/');
+          navigate('/profile');
       }
     }
   }, [isAuthenticated, navigate, user]);
@@ -42,16 +43,12 @@ export function Login() {
     setLoading(false);
 
     if (result.success) {
-      switch (result.role) {
-        case 'admin':
-        case 'moderator':
-          navigate('/admin');
-          break;
-        case 'partner':
-          navigate('/partner');
-          break;
-        default:
-          navigate('/');
+      if (result.role === 'admin' || result.role === 'moderator') {
+        navigate('/admin');
+      } else if (result.role === 'partner') {
+        navigate('/partner');
+      } else {
+        navigate('/profile');
       }
     } else {
       setError(result.error || 'Ошибка входа');
@@ -113,7 +110,9 @@ export function Login() {
         </div>
 
         <div className={styles.card}>
-          <div className={styles.brand}>Прибой</div>
+          <div className={styles.brand}>
+            <Logo size={48} showText={false} />
+          </div>
           <h1 className={styles.title}>Вход в аккаунт</h1>
           <p className={styles.subtitle}>Войдите, чтобы управлять бронированиями</p>
 

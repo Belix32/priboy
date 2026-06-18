@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import { getSupabaseClient, isSupabaseConfigured } from '../lib/supabase';
+import { mapAuthError, isDuplicateSignup } from '../lib/authErrors';
 import type { Profile } from '../lib/travel/types';
 
 export interface User {
@@ -86,6 +87,42 @@ function getAdminEmail(): string {
 function isAdminEmail(email: string): boolean {
   const adminEmail = getAdminEmail();
   return adminEmail !== '' && email.toLowerCase().trim() === adminEmail.toLowerCase().trim();
+}
+
+async function ensureUserProfile(
+  authId: string,
+  email: string,
+  name: string,
+  phone: string,
+): Promise<void> {
+  if (!isSupabaseConfigured()) return;
+
+  const supabase = getSupabaseClient();
+  const { data: existing } = await supabase
+    .from('profiles')
+    .select('id')
+    .eq('auth_id', authId)
+    .maybeSingle();
+
+  if (!existing) {
+    await supabase.from('profiles').insert({
+      auth_id: authId,
+      name: name || email.split('@')[0],
+      phone: phone || '',
+      role: isAdminEmail(email) ? 'admin' : 'user',
+    });
+    return;
+  }
+
+  if (name || phone) {
+    await supabase
+      .from('profiles')
+      .update({
+        ...(name ? { name } : {}),
+        ...(phone ? { phone } : {}),
+      })
+      .eq('auth_id', authId);
+  }
 }
 
 async function syncAdminRole(): Promise<void> {
@@ -224,13 +261,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
 
       if (error) {
-        if (error.message.includes('Invalid login credentials')) {
-          return { success: false, error: 'Неверный email или пароль' };
-        }
-        return { success: false, error: 'Ошибка входа. Попробуйте позже.' };
+        return { success: false, error: mapAuthError(error) };
       }
 
       if (data?.user) {
+        await ensureUserProfile(
+          data.user.id,
+          data.user.email || email.toLowerCase().trim(),
+          data.user.user_metadata?.name || '',
+          data.user.user_metadata?.phone || '',
+        );
         const userObj = await loadUserFromSession(data.user.email || email, data.user.id);
         setUser(userObj);
         saveUserSession(userObj);
@@ -282,10 +322,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
 
       if (error) {
-        if (error.message.includes('User already registered') || error.message.includes('already been registered')) {
-          return { success: false, error: 'Пользователь с таким email уже существует' };
-        }
-        return { success: false, error: 'Ошибка регистрации. Попробуйте позже.' };
+        return { success: false, error: mapAuthError(error) };
+      }
+
+      if (isDuplicateSignup(data.user)) {
+        return {
+          success: false,
+          error: 'Этот email уже зарегистрирован. Войдите с вашим паролем',
+        };
       }
 
       let authUser = data.user;
@@ -293,19 +337,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       // Supabase often returns user without session — sign in immediately
       if (!session && authUser) {
+        await new Promise((resolve) => setTimeout(resolve, 400));
+
         const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
           email: normalizedEmail,
           password,
         });
 
         if (signInError) {
-          if (signInError.message.toLowerCase().includes('email not confirmed')) {
-            return {
-              success: false,
-              error: 'Подтвердите email по ссылке из письма, затем войдите',
-            };
-          }
-          return { success: false, error: 'Аккаунт создан, но не удалось войти. Попробуйте войти вручную.' };
+          return { success: false, error: mapAuthError(signInError) };
         }
 
         authUser = signInData.user;
@@ -316,11 +356,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return { success: false, error: 'Ошибка регистрации' };
       }
 
-      // Ensure profile has name/phone (trigger may have created it already)
-      await supabase
-        .from('profiles')
-        .update({ name: trimmedName, phone: trimmedPhone })
-        .eq('auth_id', authUser.id);
+      await ensureUserProfile(authUser.id, authUser.email || normalizedEmail, trimmedName, trimmedPhone);
 
       const userObj = await loadUserFromSession(authUser.email || normalizedEmail, authUser.id);
       const fullUser: User = { ...userObj, name: trimmedName, phone: trimmedPhone };

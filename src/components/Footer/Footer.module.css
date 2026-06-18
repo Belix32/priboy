@@ -24,10 +24,8 @@
   gap: var(--spacing-md);
 }
 
-.logo {
-  font-size: 22px;
-  font-weight: 700;
-  color: var(--text-primary);
+.logoWrap {
+  margin-bottom: var(--spacing-xs);
 }
 
 .tagline {

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { Button } from '../../components/Button/Button';
+import { Logo } from '../../components/Logo/Logo';
 import styles from './Register.module.css';
 
 function getPasswordStrength(pw: string): { score: number; label: string } {
@@ -148,7 +149,9 @@ export function Register() {
         </div>
 
         <div className={styles.card}>
-          <div className={styles.brand}>Прибой</div>
+          <div className={styles.brand}>
+            <Logo size={48} showText={false} />
+          </div>
           <h1 className={styles.title}>Создать аккаунт</h1>
           <p className={styles.subtitle}>Заполните форму для регистрации</p>
 

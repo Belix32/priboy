@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { Logo } from '../Logo/Logo';
 import styles from './Footer.module.css';
 
 export function Footer() {
@@ -7,7 +8,7 @@ export function Footer() {
       <div className={styles.container}>
         <div className={styles.grid}>
           <div className={styles.brand}>
-            <span className={styles.logo}>Прибой</span>
+            <Logo size={40} className={styles.logoWrap} />
             <p className={styles.tagline}>
               Парковка и аренда авто на юге России. Оставьте свой автомобиль в надёжном месте и наслаждайтесь поездкой.
             </p>

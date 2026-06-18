@@ -3,6 +3,7 @@ import { useNavigate, useLocation, Link, useSearchParams } from 'react-router-do
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import { Button } from '../Button/Button';
+import { Logo } from '../Logo/Logo';
 import styles from './Header.module.css';
 
 const PRIMARY_NAV = [
@@ -16,27 +17,6 @@ const SECONDARY_NAV = [
   { to: '/#about', label: 'О нас', hash: 'about' },
   { to: '/#help', label: 'Помощь', hash: 'help' },
 ];
-
-function WaveLogo() {
-  return (
-    <svg className={styles.logoIcon} width="32" height="32" viewBox="0 0 32 32" fill="none" aria-hidden="true">
-      <circle cx="16" cy="16" r="14" className={styles.logoCircle} />
-      <path
-        d="M6 18c2-3 4-3 6 0s4 3 6 0 4-3 6 0"
-        className={styles.logoWave}
-        strokeWidth="2"
-        strokeLinecap="round"
-      />
-      <path
-        d="M6 22c2-2 4-2 6 0s4 2 6 0 4-2 6 0"
-        className={styles.logoWaveMuted}
-        strokeWidth="1.5"
-        strokeLinecap="round"
-        opacity="0.6"
-      />
-    </svg>
-  );
-}
 
 export function Header() {
   const { user, isAuthenticated, logout } = useAuth();
@@ -113,8 +93,7 @@ export function Header() {
     <header className={headerClassName}>
       <div className={styles.container}>
         <Link to="/" className={styles.logo} aria-label="Прибой — на главную">
-          <WaveLogo />
-          <span className={styles.logoText}>Прибой</span>
+          <Logo size={38} variant={isHeroHeader ? 'hero' : 'default'} />
         </Link>
 
         <nav

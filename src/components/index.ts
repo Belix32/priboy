@@ -7,4 +7,4 @@ export { SectionHeader } from './SectionHeader/SectionHeader';
 export { StepCard } from './StepCard/StepCard';
 export { DestinationCard } from './DestinationCard/DestinationCard';
 export { FeatureItem } from './FeatureItem/FeatureItem';
-export { RouteGuard } from './RouteGuard/RouteGuard';
+export { Logo } from './Logo/Logo';
