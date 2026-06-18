@@ -6,6 +6,7 @@ import { TravelModal, ModalButtons } from './components/TravelModal';
 import modalStyles from './components/TravelModal.module.css';
 import styles from './AdminTravel.module.css';
 import type { TravelBooking, TravelDestination, RentalPartner, PartnerCar } from '../../lib/travel/types';
+import { getAllTravelBookingsAdmin, getAllDestinationsAdmin } from '../../lib/travel/api';
 
 const MOCK_DESTINATIONS: TravelDestination[] = [
   { id: 'd1', name: 'Сочи', slug: 'sochi', description: null, image: null, region: null, latitude: null, longitude: null, is_active: true, sort_order: 1, created_at: '', updated_at: '' },
@@ -157,6 +158,7 @@ export function AdminTravelBookings() {
   const navigate = useNavigate();
 
   const [bookings, setBookings] = useState<TravelBooking[]>([]);
+  const [allDestinations, setAllDestinations] = useState<TravelDestination[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedBooking, setSelectedBooking] = useState<TravelBooking | null>(null);
@@ -178,25 +180,24 @@ export function AdminTravelBookings() {
 
   useEffect(() => {
     setLoading(true);
-    const timer = setTimeout(() => {
-      setBookings(MOCK_BOOKINGS);
+    Promise.all([getAllTravelBookingsAdmin(), getAllDestinationsAdmin()]).then(([bookingsData, destData]) => {
+      setBookings(bookingsData);
+      setAllDestinations(destData);
       setLoading(false);
-    }, 300);
-    return () => clearTimeout(timer);
+    });
   }, []);
 
   const getDestinationName = (booking: TravelBooking) => {
-    return booking.destination?.name || MOCK_DESTINATIONS.find((d) => d.id === booking.destination_id)?.name || '-';
+    return booking.destination?.name || allDestinations.find((d) => d.id === booking.destination_id)?.name || '-';
   };
 
   const getPartnerName = (booking: TravelBooking) => {
-    return booking.partner?.name || MOCK_PARTNERS.find((p) => p.id === booking.partner_id)?.name || '-';
+    return booking.partner?.name || '-';
   };
 
   const getCarDisplay = (booking: TravelBooking) => {
     if (booking.car) return `${booking.car.brand} ${booking.car.model}`;
-    const car = MOCK_CARS.find((c) => c.id === booking.car_id);
-    return car ? `${car.brand} ${car.model}` : '-';
+    return '-';
   };
 
   const filteredBookings = useMemo(() => {
@@ -379,7 +380,7 @@ export function AdminTravelBookings() {
                 <label>Направление</label>
                 <select value={destinationFilter} onChange={(e) => setDestinationFilter(e.target.value)}>
                   <option value="">Все направления</option>
-                  {MOCK_DESTINATIONS.map((d) => (
+                  {allDestinations.map((d) => (
                     <option key={d.id} value={d.id}>{d.name}</option>
                   ))}
                 </select>

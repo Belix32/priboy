@@ -6,6 +6,7 @@ import { TravelModal, ModalButtons } from './components/TravelModal';
 import modalStyles from './components/TravelModal.module.css';
 import styles from './AdminTravel.module.css';
 import type { CarStorage, RentalPartner } from '../../lib/travel/types';
+import { getAllStorageAdmin, getAllPartnersAdmin } from '../../lib/travel/api';
 
 const MOCK_PARTNERS: RentalPartner[] = [
   { id: 'p1', name: 'Авангард-Авто', slug: 'avangard-avto', description: null, logo: null, phone: null, email: null, website: null, is_active: true, commission_rate: 15, rating: 4.5, created_at: '', updated_at: '' },
@@ -94,6 +95,7 @@ export function AdminTravelStorage() {
   const navigate = useNavigate();
 
   const [storage, setStorage] = useState<CarStorage[]>([]);
+  const [partners, setPartners] = useState<RentalPartner[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
@@ -109,15 +111,15 @@ export function AdminTravelStorage() {
 
   useEffect(() => {
     setLoading(true);
-    const timer = setTimeout(() => {
-      setStorage(MOCK_STORAGE);
+    Promise.all([getAllStorageAdmin(), getAllPartnersAdmin()]).then(([storageData, partnersData]) => {
+      setStorage(storageData);
+      setPartners(partnersData);
       setLoading(false);
-    }, 300);
-    return () => clearTimeout(timer);
+    });
   }, []);
 
   const getPartnerName = (partnerId: string) => {
-    return MOCK_PARTNERS.find((p) => p.id === partnerId)?.name || partnerId;
+    return partners.find((p) => p.id === partnerId)?.name || partnerId;
   };
 
   const getDisplayCar = (item: CarStorage) => {

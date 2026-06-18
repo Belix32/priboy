@@ -1,33 +1,17 @@
 import { useState, useEffect, useMemo } from 'react';
+import { useAuth } from '../../contexts/AuthContext';
+import {
+  getPartnerCars,
+  createCar,
+  updateCar,
+  deleteCar,
+  updatePartnerCarAvailability,
+} from '../../lib/travel/api';
+import type { PartnerCar } from '../../lib/travel/types';
 import { PartnerLayout } from './PartnerLayout';
 import styles from './Partner.module.css';
 
-interface PartnerCarItem {
-  id: string;
-  brand: string;
-  model: string;
-  year: number;
-  color: string;
-  transmission: 'manual' | 'automatic';
-  fuel_type: 'gasoline' | 'diesel' | 'electric' | 'hybrid';
-  seats: number;
-  price_per_day: number;
-  deposit: number;
-  is_available: boolean;
-  is_active: boolean;
-  description?: string;
-}
-
-const MOCK_CARS: PartnerCarItem[] = [
-  { id: 'car-1', brand: 'Hyundai', model: 'Solaris', year: 2023, color: 'Белый', transmission: 'automatic', fuel_type: 'gasoline', seats: 5, price_per_day: 2500, deposit: 10000, is_available: true, is_active: true },
-  { id: 'car-2', brand: 'Kia', model: 'Rio', year: 2023, color: 'Синий', transmission: 'automatic', fuel_type: 'gasoline', seats: 5, price_per_day: 2800, deposit: 10000, is_available: true, is_active: true },
-  { id: 'car-3', brand: 'Toyota', model: 'Camry', year: 2024, color: 'Чёрный', transmission: 'automatic', fuel_type: 'gasoline', seats: 5, price_per_day: 4500, deposit: 20000, is_available: true, is_active: true },
-  { id: 'car-4', brand: 'Renault', model: 'Duster', year: 2023, color: 'Зелёный', transmission: 'manual', fuel_type: 'gasoline', seats: 5, price_per_day: 3200, deposit: 15000, is_available: false, is_active: true },
-  { id: 'car-5', brand: 'Lada', model: 'Vesta', year: 2024, color: 'Серебристый', transmission: 'manual', fuel_type: 'gasoline', seats: 5, price_per_day: 2000, deposit: 8000, is_available: true, is_active: true },
-  { id: 'car-6', brand: 'Nissan', model: 'Qashqai', year: 2023, color: 'Серый', transmission: 'automatic', fuel_type: 'diesel', seats: 5, price_per_day: 3800, deposit: 18000, is_available: true, is_active: true },
-  { id: 'car-7', brand: 'Volkswagen', model: 'Polo', year: 2024, color: 'Красный', transmission: 'automatic', fuel_type: 'gasoline', seats: 5, price_per_day: 3000, deposit: 12000, is_available: true, is_active: true },
-  { id: 'car-8', brand: 'Mitsubishi', model: 'Outlander', year: 2023, color: 'Тёмно-синий', transmission: 'automatic', fuel_type: 'gasoline', seats: 7, price_per_day: 4200, deposit: 20000, is_available: false, is_active: false },
-];
+type PartnerCarItem = PartnerCar;
 
 interface CarFormData {
   brand: string;
@@ -72,6 +56,7 @@ const FUEL_LABELS: Record<string, string> = {
 };
 
 export function PartnerCars() {
+  const { partnerId } = useAuth();
   const [cars, setCars] = useState<PartnerCarItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -84,12 +69,15 @@ export function PartnerCars() {
   const [formData, setFormData] = useState<CarFormData>(emptyForm);
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setCars(MOCK_CARS);
+    if (!partnerId) {
       setLoading(false);
-    }, 300);
-    return () => clearTimeout(timer);
-  }, []);
+      return;
+    }
+    getPartnerCars(partnerId).then((data) => {
+      setCars(data);
+      setLoading(false);
+    });
+  }, [partnerId]);
 
   const filteredData = useMemo(() => {
     if (!searchQuery) return cars;
@@ -128,43 +116,50 @@ export function PartnerCars() {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
-  const handleAddItem = () => {
-    const newCar: PartnerCarItem = {
-      id: 'car-' + Date.now(),
+  const handleAddItem = async () => {
+    if (!partnerId) return;
+    const created = await createCar({
+      partner_id: partnerId,
       brand: formData.brand,
       model: formData.model,
       year: Number(formData.year) || new Date().getFullYear(),
-      color: formData.color,
+      color: formData.color || null,
       transmission: formData.transmission,
       fuel_type: formData.fuel_type,
       seats: formData.seats,
       price_per_day: formData.price_per_day,
       deposit: formData.deposit,
+      description: formData.description || null,
       is_available: formData.is_available,
       is_active: true,
-      description: formData.description || undefined,
-    };
-    setCars((prev) => [newCar, ...prev]);
-    setAddModalOpen(false);
-    setFormData(emptyForm);
+    });
+    if (created) {
+      setCars((prev) => [created, ...prev]);
+      setAddModalOpen(false);
+      setFormData(emptyForm);
+    }
   };
 
-  const handleUpdateItem = () => {
+  const handleUpdateItem = async () => {
     if (!editItem) return;
+    await updateCar(editItem.id, editItem);
     setCars((prev) => prev.map((c) => (c.id === editItem.id ? editItem : c)));
     setEditItem(null);
   };
 
-  const handleToggleAvailability = (item: PartnerCarItem) => {
+  const handleToggleAvailability = async (item: PartnerCarItem) => {
+    const nextAvailable = !item.is_available;
+    await updatePartnerCarAvailability(item.id, nextAvailable);
     setCars((prev) =>
       prev.map((c) =>
-        c.id === item.id ? { ...c, is_available: !c.is_available } : c
+        c.id === item.id ? { ...c, is_available: nextAvailable } : c
       )
     );
   };
 
-  const handleDeleteItem = () => {
+  const handleDeleteItem = async () => {
     if (!deleteConfirmId) return;
+    await deleteCar(deleteConfirmId);
     setCars((prev) => prev.filter((c) => c.id !== deleteConfirmId));
     setDeleteConfirmId(null);
   };
@@ -523,7 +518,7 @@ export function PartnerCars() {
                     <label>Год</label>
                     <input
                       type="number"
-                      value={editItem.year}
+                      value={editItem.year ?? ''}
                       onChange={(e) =>
                         setEditItem({
                           ...editItem,
@@ -536,7 +531,7 @@ export function PartnerCars() {
                     <label>Цвет</label>
                     <input
                       type="text"
-                      value={editItem.color}
+                      value={editItem.color ?? ''}
                       onChange={(e) =>
                         setEditItem({ ...editItem, color: e.target.value })
                       }

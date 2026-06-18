@@ -1,25 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../../contexts/AuthContext';
+import { getPartnerStats, getPartnerBookings } from '../../lib/travel/api';
+import type { TravelBooking } from '../../lib/travel/types';
 import { PartnerLayout } from './PartnerLayout';
 import styles from './Partner.module.css';
-
-const MOCK_STATS = {
-  totalBookings: 18,
-  activeBookings: 5,
-  totalCars: 8,
-  availableCars: 5,
-  totalStorage: 7,
-  activeStorage: 3,
-  totalRevenue: 425000,
-};
-
-const MOCK_BOOKINGS = [
-  { id: 'BK-001', destination: 'Сочи', car: 'Hyundai Solaris', dates: '01.06.2026 - 07.06.2026', total_price: 35000, status: 'active' },
-  { id: 'BK-002', destination: 'Анапа', car: 'Kia Rio', dates: '10.06.2026 - 15.06.2026', total_price: 28000, status: 'confirmed' },
-  { id: 'BK-003', destination: 'Сочи', car: 'Toyota Camry', dates: '20.06.2026 - 28.06.2026', total_price: 56000, status: 'pending' },
-  { id: 'BK-004', destination: 'Геленджик', car: 'Renault Duster', dates: '05.06.2026 - 10.06.2026', total_price: 31000, status: 'completed' },
-  { id: 'BK-005', destination: 'Сочи', car: 'Nissan Qashqai', dates: '15.07.2026 - 22.07.2026', total_price: 42000, status: 'pending' },
-];
 
 const STATUS_LABELS: Record<string, string> = {
   pending: 'Ожидает',
@@ -31,12 +16,22 @@ const STATUS_LABELS: Record<string, string> = {
 
 export function PartnerDashboard() {
   const navigate = useNavigate();
+  const { partnerId } = useAuth();
   const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState({ totalBookings: 0, activeBookings: 0, totalCars: 0, availableCars: 0, totalStorage: 0, activeStorage: 0, totalRevenue: 0 });
+  const [bookings, setBookings] = useState<TravelBooking[]>([]);
 
   useEffect(() => {
-    const timer = setTimeout(() => setLoading(false), 300);
-    return () => clearTimeout(timer);
-  }, []);
+    if (!partnerId) {
+      setLoading(false);
+      return;
+    }
+    Promise.all([getPartnerStats(partnerId), getPartnerBookings(partnerId)]).then(([statsData, bookingsData]) => {
+      setStats(statsData);
+      setBookings(bookingsData.slice(0, 5));
+      setLoading(false);
+    });
+  }, [partnerId]);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('ru-RU', {
@@ -73,14 +68,14 @@ export function PartnerDashboard() {
           <div className={styles.statCard}>
             <div className={styles.statIcon}>📋</div>
             <div className={styles.statContent}>
-              <span className={styles.statValue}>{MOCK_STATS.totalBookings}</span>
+              <span className={styles.statValue}>{stats.totalBookings}</span>
               <span className={styles.statLabel}>Всего броней</span>
             </div>
           </div>
           <div className={styles.statCard}>
             <div className={`${styles.statIcon} ${styles.statIconOrange}`}>🚀</div>
             <div className={styles.statContent}>
-              <span className={styles.statValue}>{MOCK_STATS.activeBookings}</span>
+              <span className={styles.statValue}>{stats.activeBookings}</span>
               <span className={styles.statLabel}>Активные поездки</span>
             </div>
           </div>
@@ -88,16 +83,16 @@ export function PartnerDashboard() {
             <div className={`${styles.statIcon} ${styles.statIconGreen}`}>🚗</div>
             <div className={styles.statContent}>
               <span className={styles.statValue}>
-                {MOCK_STATS.availableCars}/{MOCK_STATS.totalCars}
+                {stats.availableCars}/{stats.totalCars}
               </span>
               <span className={styles.statLabel}>Автомобили</span>
-              <span className={styles.statSub}>{MOCK_STATS.availableCars} свободно</span>
+              <span className={styles.statSub}>{stats.availableCars} свободно</span>
             </div>
           </div>
           <div className={styles.statCard}>
             <div className={`${styles.statIcon} ${styles.statIconPurple}`}>💰</div>
             <div className={styles.statContent}>
-              <span className={styles.statValue}>{formatCurrency(MOCK_STATS.totalRevenue)}</span>
+              <span className={styles.statValue}>{formatCurrency(stats.totalRevenue)}</span>
               <span className={styles.statLabel}>Доход</span>
             </div>
           </div>
@@ -133,7 +128,7 @@ export function PartnerDashboard() {
           <div className={styles.cardHeader}>
             <h3 className={styles.cardTitle}>Последние бронирования</h3>
           </div>
-          {MOCK_BOOKINGS.length === 0 ? (
+          {bookings.length === 0 ? (
             <div className={styles.empty}>
               <h3>Нет бронирований</h3>
               <p>Бронирования пока не поступали.</p>
@@ -152,14 +147,14 @@ export function PartnerDashboard() {
                   </tr>
                 </thead>
                 <tbody>
-                  {MOCK_BOOKINGS.map((booking) => (
+                  {bookings.map((booking) => (
                     <tr key={booking.id}>
                       <td>
-                        <span className={styles.idCell}>{booking.id}</span>
+                        <span className={styles.idCell}>{booking.id.slice(0, 8)}</span>
                       </td>
-                      <td>{booking.destination}</td>
-                      <td>{booking.car}</td>
-                      <td>{booking.dates}</td>
+                      <td>{booking.destination?.name || '-'}</td>
+                      <td>{booking.car ? `${booking.car.brand} ${booking.car.model}` : '-'}</td>
+                      <td>{booking.start_date} — {booking.end_date}</td>
                       <td className={styles.priceCell}>{formatCurrency(booking.total_price)}</td>
                       <td>
                         <span className={`${styles.badge} ${getStatusClass(booking.status)}`}>

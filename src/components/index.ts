@@ -1,3 +1,10 @@
 export { Button } from './Button/Button';
 export { Input } from './Input/Input';
 export { ErrorBoundary } from './ErrorBoundary';
+export { Header } from './Header/Header';
+export { Footer } from './Footer/Footer';
+export { SectionHeader } from './SectionHeader/SectionHeader';
+export { StepCard } from './StepCard/StepCard';
+export { DestinationCard } from './DestinationCard/DestinationCard';
+export { FeatureItem } from './FeatureItem/FeatureItem';
+export { RouteGuard } from './RouteGuard/RouteGuard';

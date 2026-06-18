@@ -6,57 +6,12 @@ import { TravelModal, ModalButtons } from './components/TravelModal';
 import modalStyles from './components/TravelModal.module.css';
 import styles from './AdminTravel.module.css';
 import type { TravelDestination } from '../../lib/travel/types';
-
-const MOCK_DESTINATIONS: TravelDestination[] = [
-  {
-    id: 'd1', name: 'Сочи', slug: 'sochi', region: 'Краснодарский край',
-    description: 'Крупнейший курортный город России на побережье Чёрного моря',
-    image: '/images/destinations/sochi.jpg', latitude: 43.5855, longitude: 39.7231,
-    is_active: true, sort_order: 1, created_at: '2024-01-15T10:00:00Z', updated_at: '2024-06-01T10:00:00Z',
-  },
-  {
-    id: 'd2', name: 'Анапа', slug: 'anapa', region: 'Краснодарский край',
-    description: 'Детский и семейный курорт с песчаными пляжами',
-    image: '/images/destinations/anapa.jpg', latitude: 44.8944, longitude: 37.3167,
-    is_active: true, sort_order: 2, created_at: '2024-01-15T10:00:00Z', updated_at: '2024-06-01T10:00:00Z',
-  },
-  {
-    id: 'd3', name: 'Геленджик', slug: 'gelendzhik', region: 'Краснодарский край',
-    description: 'Курорт на берегу Геленджикской бухты', image: null,
-    latitude: 44.5611, longitude: 38.0769, is_active: true, sort_order: 3,
-    created_at: '2024-02-01T14:30:00Z', updated_at: '2024-06-01T10:00:00Z',
-  },
-  {
-    id: 'd4', name: 'Новороссийск', slug: 'novorossiysk', region: 'Краснодарский край',
-    description: 'Крупный портовый город', image: null,
-    latitude: 44.7235, longitude: 37.7687, is_active: true, sort_order: 4,
-    created_at: '2024-02-10T09:15:00Z', updated_at: '2024-06-01T10:00:00Z',
-  },
-  {
-    id: 'd5', name: 'Туапсе', slug: 'tuapse', region: 'Краснодарский край',
-    description: 'Город-порт на Черноморском побережье', image: null,
-    latitude: 44.0937, longitude: 39.0742, is_active: false, sort_order: 5,
-    created_at: '2024-03-05T11:00:00Z', updated_at: '2024-06-01T10:00:00Z',
-  },
-  {
-    id: 'd6', name: 'Крым', slug: 'crimea', region: 'Республика Крым',
-    description: 'Полуостров с уникальной природой и историей', image: null,
-    latitude: 44.9521, longitude: 34.1024, is_active: true, sort_order: 6,
-    created_at: '2024-03-15T08:00:00Z', updated_at: '2024-06-01T10:00:00Z',
-  },
-  {
-    id: 'd7', name: 'Адлер', slug: 'adler', region: 'Краснодарский край',
-    description: 'Район Сочи с современной инфраструктурой', image: null,
-    latitude: 43.4291, longitude: 39.9231, is_active: true, sort_order: 7,
-    created_at: '2024-04-01T12:00:00Z', updated_at: '2024-06-01T10:00:00Z',
-  },
-  {
-    id: 'd8', name: 'Дагомыс', slug: 'dagomys', region: 'Краснодарский край',
-    description: 'Курортный посёлок в Лазаревском районе Сочи', image: null,
-    latitude: 43.6640, longitude: 39.6572, is_active: false, sort_order: 8,
-    created_at: '2024-04-10T16:30:00Z', updated_at: '2024-06-01T10:00:00Z',
-  },
-];
+import {
+  getAllDestinationsAdmin,
+  createDestination,
+  updateDestination,
+  deleteDestination,
+} from '../../lib/travel/api';
 
 interface DestinationFormData {
   name: string;
@@ -105,11 +60,10 @@ export function AdminTravelDestinations() {
 
   useEffect(() => {
     setLoading(true);
-    const timer = setTimeout(() => {
-      setDestinations(MOCK_DESTINATIONS);
+    getAllDestinationsAdmin().then((data) => {
+      setDestinations(data);
       setLoading(false);
-    }, 300);
-    return () => clearTimeout(timer);
+    });
   }, []);
 
   const filteredData = useMemo(() => {
@@ -161,9 +115,8 @@ export function AdminTravelDestinations() {
     }
   };
 
-  const handleAddItem = () => {
-    const newItem: TravelDestination = {
-      id: 'd' + Date.now(),
+  const handleAddItem = async () => {
+    const created = await createDestination({
       name: formData.name,
       slug: formData.slug,
       region: formData.region || null,
@@ -173,32 +126,36 @@ export function AdminTravelDestinations() {
       longitude: formData.longitude ? Number(formData.longitude) : null,
       sort_order: formData.sort_order,
       is_active: formData.is_active,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    };
-    setDestinations((prev) => [newItem, ...prev]);
-    setAddModalOpen(false);
-    setFormData(initialFormData);
+    });
+    if (created) {
+      setDestinations((prev) => [created, ...prev]);
+      setAddModalOpen(false);
+      setFormData(initialFormData);
+    }
   };
 
-  const handleUpdateItem = () => {
+  const handleUpdateItem = async () => {
     if (!editItem) return;
+    await updateDestination(editItem.id, editItem);
     setDestinations((prev) =>
       prev.map((d) => (d.id === editItem.id ? editItem : d))
     );
     setEditItem(null);
   };
 
-  const handleToggleStatus = (item: TravelDestination) => {
+  const handleToggleStatus = async (item: TravelDestination) => {
+    const nextActive = !item.is_active;
+    await updateDestination(item.id, { is_active: nextActive });
     setDestinations((prev) =>
       prev.map((d) =>
-        d.id === item.id ? { ...d, is_active: !d.is_active } : d
+        d.id === item.id ? { ...d, is_active: nextActive } : d
       )
     );
   };
 
-  const handleDeleteItem = () => {
+  const handleDeleteItem = async () => {
     if (!deleteConfirmId) return;
+    await deleteDestination(deleteConfirmId);
     setDestinations((prev) => prev.filter((d) => d.id !== deleteConfirmId));
     setDeleteConfirmId(null);
   };

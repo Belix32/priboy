@@ -11,11 +11,24 @@ export interface TravelDestination {
   slug: string;
   description: string | null;
   image: string | null;
+  hero_image?: string | null;
   region: string | null;
   latitude: number | null;
   longitude: number | null;
+  price_from?: number;
   is_active: boolean;
   sort_order: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Profile {
+  id: string;
+  auth_id: string;
+  name: string | null;
+  phone: string | null;
+  role: 'user' | 'partner' | 'moderator' | 'admin';
+  partner_id: string | null;
   created_at: string;
   updated_at: string;
 }

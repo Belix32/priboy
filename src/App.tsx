@@ -1,12 +1,11 @@
 import { Routes, Route, useLocation } from 'react-router-dom';
 import { lazy, Suspense } from 'react';
-import { TravelHeader } from './components/TravelHeader/TravelHeader';
+import { Header } from './components/Header/Header';
+import { RouteGuard } from './components/RouteGuard/RouteGuard';
 
-// Auth pages
 const Login = lazy(() => import('./pages/Login/Login').then(m => ({ default: m.Login })));
 const Register = lazy(() => import('./pages/Register/Register').then(m => ({ default: m.Register })));
 
-// Travel pages (user-facing)
 const TravelHome = lazy(() => import('./pages/Travel/TravelHome').then(m => ({ default: m.TravelHome })));
 const TravelSearch = lazy(() => import('./pages/Travel/TravelSearch').then(m => ({ default: m.TravelSearch })));
 const TravelBooking = lazy(() => import('./pages/Travel/TravelBooking').then(m => ({ default: m.TravelBooking })));
@@ -16,7 +15,6 @@ const MyTravelTrips = lazy(() => import('./pages/Travel/MyTravelTrips').then(m =
 const UserProfile = lazy(() => import('./pages/Travel/UserProfile').then(m => ({ default: m.UserProfile })));
 const TravelMap = lazy(() => import('./pages/Travel/TravelMap').then(m => ({ default: m.TravelMap })));
 
-// Admin pages
 const AdminTravelDashboard = lazy(() => import('./pages/Admin/AdminTravelDashboard').then(m => ({ default: m.AdminTravelDashboard })));
 const AdminTravelDestinations = lazy(() => import('./pages/Admin/AdminTravelDestinations').then(m => ({ default: m.AdminTravelDestinations })));
 const AdminTravelPartners = lazy(() => import('./pages/Admin/AdminTravelPartners').then(m => ({ default: m.AdminTravelPartners })));
@@ -25,7 +23,6 @@ const AdminTravelBookings = lazy(() => import('./pages/Admin/AdminTravelBookings
 const AdminTravelStorage = lazy(() => import('./pages/Admin/AdminTravelStorage').then(m => ({ default: m.AdminTravelStorage })));
 const AdminUsers = lazy(() => import('./pages/Admin/AdminUsers').then(m => ({ default: m.AdminUsers })));
 
-// Partner pages
 const PartnerDashboard = lazy(() => import('./pages/Partner/PartnerDashboard').then(m => ({ default: m.PartnerDashboard })));
 const PartnerCars = lazy(() => import('./pages/Partner/PartnerCars').then(m => ({ default: m.PartnerCars })));
 const PartnerBookings = lazy(() => import('./pages/Partner/PartnerBookings').then(m => ({ default: m.PartnerBookings })));
@@ -37,69 +34,70 @@ function PageLoader() {
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
-      minHeight: '100vh',
-      background: 'var(--ocean-deep, #0c4a6e)',
-      color: '#fff'
+      minHeight: '60vh',
+      color: 'var(--text-secondary)',
     }}>
-      <div style={{ textAlign: 'center' }}>
-        <div style={{
-          width: 40,
-          height: 40,
-          border: '3px solid #38bdf8',
-          borderTopColor: 'transparent',
-          borderRadius: '50%',
-          animation: 'spin 1s linear infinite',
-          margin: '0 auto 16px'
-        }} />
-        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-        Прибой загружается...
-      </div>
+      Прибой загружается...
     </div>
   );
 }
 
+function ProtectedAdmin({ children }: { children: React.ReactNode }) {
+  return <RouteGuard requireAdmin>{children}</RouteGuard>;
+}
+
+function ProtectedPartner({ children }: { children: React.ReactNode }) {
+  return <RouteGuard requirePartner>{children}</RouteGuard>;
+}
+
+function ProtectedAuth({ children }: { children: React.ReactNode }) {
+  return <RouteGuard requireAuth>{children}</RouteGuard>;
+}
+
 export default function App() {
   const location = useLocation();
-  // Show header on public/travel/auth pages, hide on admin/partner
   const showHeader = !location.pathname.startsWith('/admin') && !location.pathname.startsWith('/partner');
 
   return (
     <>
       <a href="#main" className="skipLink">Перейти к основному контенту</a>
-      {showHeader && <TravelHeader />}
+      {showHeader && <Header />}
       <main id="main" role="main">
         <Suspense fallback={<PageLoader />}>
           <Routes>
-            {/* Auth */}
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
             <Route path="/admin-login" element={<Login />} />
 
-            {/* User pages */}
             <Route path="/" element={<TravelHome />} />
             <Route path="/travel" element={<TravelHome />} />
+            <Route path="/search" element={<TravelSearch />} />
             <Route path="/travel/search" element={<TravelSearch />} />
-            <Route path="/travel/booking/:carId" element={<TravelBooking />} />
-            <Route path="/travel/booking/confirm" element={<TravelBookingConfirm />} />
-            <Route path="/travel/booking/success" element={<TravelBookingSuccess />} />
-            <Route path="/travel/my-trips" element={<MyTravelTrips />} />
-            <Route path="/travel/profile" element={<UserProfile />} />
+            <Route path="/booking/:carId" element={<ProtectedAuth><TravelBooking /></ProtectedAuth>} />
+            <Route path="/travel/booking/:carId" element={<ProtectedAuth><TravelBooking /></ProtectedAuth>} />
+            <Route path="/booking/confirm" element={<ProtectedAuth><TravelBookingConfirm /></ProtectedAuth>} />
+            <Route path="/travel/booking/confirm" element={<ProtectedAuth><TravelBookingConfirm /></ProtectedAuth>} />
+            <Route path="/booking/success" element={<ProtectedAuth><TravelBookingSuccess /></ProtectedAuth>} />
+            <Route path="/travel/booking/success" element={<ProtectedAuth><TravelBookingSuccess /></ProtectedAuth>} />
+            <Route path="/my-trips" element={<ProtectedAuth><MyTravelTrips /></ProtectedAuth>} />
+            <Route path="/travel/my-trips" element={<ProtectedAuth><MyTravelTrips /></ProtectedAuth>} />
+            <Route path="/profile" element={<ProtectedAuth><UserProfile /></ProtectedAuth>} />
+            <Route path="/travel/profile" element={<ProtectedAuth><UserProfile /></ProtectedAuth>} />
+            <Route path="/map" element={<TravelMap />} />
             <Route path="/travel/map" element={<TravelMap />} />
 
-            {/* Admin pages */}
-            <Route path="/admin" element={<AdminTravelDashboard />} />
-            <Route path="/admin/destinations" element={<AdminTravelDestinations />} />
-            <Route path="/admin/partners" element={<AdminTravelPartners />} />
-            <Route path="/admin/cars" element={<AdminTravelCars />} />
-            <Route path="/admin/bookings" element={<AdminTravelBookings />} />
-            <Route path="/admin/storage" element={<AdminTravelStorage />} />
-            <Route path="/admin/users" element={<AdminUsers />} />
+            <Route path="/admin" element={<ProtectedAdmin><AdminTravelDashboard /></ProtectedAdmin>} />
+            <Route path="/admin/destinations" element={<ProtectedAdmin><AdminTravelDestinations /></ProtectedAdmin>} />
+            <Route path="/admin/partners" element={<ProtectedAdmin><AdminTravelPartners /></ProtectedAdmin>} />
+            <Route path="/admin/cars" element={<ProtectedAdmin><AdminTravelCars /></ProtectedAdmin>} />
+            <Route path="/admin/bookings" element={<ProtectedAdmin><AdminTravelBookings /></ProtectedAdmin>} />
+            <Route path="/admin/storage" element={<ProtectedAdmin><AdminTravelStorage /></ProtectedAdmin>} />
+            <Route path="/admin/users" element={<ProtectedAdmin><AdminUsers /></ProtectedAdmin>} />
 
-            {/* Partner pages */}
-            <Route path="/partner" element={<PartnerDashboard />} />
-            <Route path="/partner/cars" element={<PartnerCars />} />
-            <Route path="/partner/bookings" element={<PartnerBookings />} />
-            <Route path="/partner/storage" element={<PartnerStorage />} />
+            <Route path="/partner" element={<ProtectedPartner><PartnerDashboard /></ProtectedPartner>} />
+            <Route path="/partner/cars" element={<ProtectedPartner><PartnerCars /></ProtectedPartner>} />
+            <Route path="/partner/bookings" element={<ProtectedPartner><PartnerBookings /></ProtectedPartner>} />
+            <Route path="/partner/storage" element={<ProtectedPartner><PartnerStorage /></ProtectedPartner>} />
           </Routes>
         </Suspense>
       </main>

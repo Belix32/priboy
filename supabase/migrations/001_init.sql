@@ -1,0 +1,346 @@
+-- ====================================================================
+-- Прибой v2 — Полная схема БД
+-- ====================================================================
+
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
+-- ====================================================================
+-- 1. Утилиты
+-- ====================================================================
+CREATE OR REPLACE FUNCTION update_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.updated_at = now();
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- ====================================================================
+-- 2. profiles — пользователи и роли
+-- ====================================================================
+CREATE TABLE IF NOT EXISTS profiles (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  auth_id UUID NOT NULL UNIQUE REFERENCES auth.users(id) ON DELETE CASCADE,
+  name TEXT,
+  phone TEXT,
+  role TEXT DEFAULT 'user' CHECK (role IN ('user', 'partner', 'moderator', 'admin')),
+  partner_id UUID,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_profiles_auth_id ON profiles(auth_id);
+CREATE INDEX IF NOT EXISTS idx_profiles_role ON profiles(role);
+
+CREATE TRIGGER trg_profiles_updated_at
+  BEFORE UPDATE ON profiles
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+
+-- Auto-create profile on signup
+CREATE OR REPLACE FUNCTION handle_new_user()
+RETURNS TRIGGER AS $$
+BEGIN
+  INSERT INTO public.profiles (auth_id, name, phone, role)
+  VALUES (
+    NEW.id,
+    COALESCE(NEW.raw_user_meta_data->>'name', split_part(NEW.email, '@', 1)),
+    COALESCE(NEW.raw_user_meta_data->>'phone', ''),
+    'user'
+  )
+  ON CONFLICT (auth_id) DO NOTHING;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+CREATE TRIGGER on_auth_user_created
+  AFTER INSERT ON auth.users
+  FOR EACH ROW EXECUTE FUNCTION handle_new_user();
+
+ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Users can view own profile" ON profiles;
+DROP POLICY IF EXISTS "Users can update own profile" ON profiles;
+DROP POLICY IF EXISTS "Admins can manage profiles" ON profiles;
+
+CREATE POLICY "Users can view own profile" ON profiles
+  FOR SELECT USING (auth_id = auth.uid());
+CREATE POLICY "Users can update own profile" ON profiles
+  FOR UPDATE USING (auth_id = auth.uid());
+CREATE POLICY "Admins can manage profiles" ON profiles
+  FOR ALL USING (
+    EXISTS (SELECT 1 FROM profiles p WHERE p.auth_id = auth.uid() AND p.role IN ('admin', 'moderator'))
+  );
+
+-- ====================================================================
+-- 3. travel_destinations
+-- ====================================================================
+CREATE TABLE IF NOT EXISTS travel_destinations (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  name TEXT NOT NULL,
+  slug TEXT NOT NULL UNIQUE,
+  description TEXT,
+  image TEXT,
+  hero_image TEXT,
+  region TEXT,
+  latitude DECIMAL(10, 8),
+  longitude DECIMAL(11, 8),
+  price_from INTEGER DEFAULT 1200,
+  is_active BOOLEAN DEFAULT true,
+  sort_order INTEGER DEFAULT 0,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS rental_partners (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  name TEXT NOT NULL,
+  slug TEXT NOT NULL UNIQUE,
+  description TEXT,
+  logo TEXT,
+  phone TEXT,
+  email TEXT,
+  website TEXT,
+  is_active BOOLEAN DEFAULT true,
+  commission_rate DECIMAL(5, 2) DEFAULT 15.00,
+  rating DECIMAL(3, 2) DEFAULT 0,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now()
+);
+
+ALTER TABLE profiles
+  DROP CONSTRAINT IF EXISTS profiles_partner_id_fkey;
+ALTER TABLE profiles
+  ADD CONSTRAINT profiles_partner_id_fkey
+  FOREIGN KEY (partner_id) REFERENCES rental_partners(id) ON DELETE SET NULL;
+
+CREATE TABLE IF NOT EXISTS partner_locations (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  partner_id UUID NOT NULL REFERENCES rental_partners(id) ON DELETE CASCADE,
+  destination_id UUID NOT NULL REFERENCES travel_destinations(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  address TEXT NOT NULL,
+  latitude DECIMAL(10, 8),
+  longitude DECIMAL(11, 8),
+  phone TEXT,
+  has_storage BOOLEAN DEFAULT true,
+  has_rental BOOLEAN DEFAULT true,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS partner_cars (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  partner_id UUID NOT NULL REFERENCES rental_partners(id) ON DELETE CASCADE,
+  location_id UUID REFERENCES partner_locations(id) ON DELETE SET NULL,
+  brand TEXT NOT NULL,
+  model TEXT NOT NULL,
+  year INTEGER,
+  color TEXT,
+  license_plate TEXT,
+  transmission TEXT CHECK (transmission IN ('manual', 'automatic')),
+  fuel_type TEXT CHECK (fuel_type IN ('gasoline', 'diesel', 'electric', 'hybrid')),
+  seats INTEGER DEFAULT 5,
+  price_per_day INTEGER NOT NULL CHECK (price_per_day > 0),
+  deposit INTEGER DEFAULT 0,
+  image TEXT,
+  images TEXT[] DEFAULT '{}',
+  description TEXT,
+  is_available BOOLEAN DEFAULT true,
+  is_active BOOLEAN DEFAULT true,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS travel_bookings (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  destination_id UUID NOT NULL REFERENCES travel_destinations(id) ON DELETE CASCADE,
+  partner_id UUID NOT NULL REFERENCES rental_partners(id) ON DELETE CASCADE,
+  car_id UUID NOT NULL REFERENCES partner_cars(id) ON DELETE CASCADE,
+  location_id UUID REFERENCES partner_locations(id) ON DELETE SET NULL,
+  start_date DATE NOT NULL,
+  end_date DATE NOT NULL,
+  rental_price_per_day INTEGER,
+  total_rental_days INTEGER,
+  total_rental_price INTEGER,
+  has_storage BOOLEAN DEFAULT true,
+  storage_price_per_day INTEGER DEFAULT 0,
+  total_storage_days INTEGER,
+  total_storage_price INTEGER DEFAULT 0,
+  own_car_brand TEXT,
+  own_car_model TEXT,
+  own_car_color TEXT,
+  own_car_license_plate TEXT,
+  total_price INTEGER NOT NULL,
+  commission_price INTEGER NOT NULL,
+  status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'confirmed', 'active', 'completed', 'cancelled')),
+  payment_status TEXT DEFAULT 'pending' CHECK (payment_status IN ('pending', 'paid', 'refunded', 'partially_refunded')),
+  payment_method TEXT,
+  payment_id TEXT,
+  notes TEXT,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS car_storage (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  travel_booking_id UUID NOT NULL REFERENCES travel_bookings(id) ON DELETE CASCADE,
+  partner_id UUID NOT NULL REFERENCES rental_partners(id) ON DELETE CASCADE,
+  location_id UUID REFERENCES partner_locations(id) ON DELETE SET NULL,
+  car_brand TEXT NOT NULL,
+  car_model TEXT NOT NULL,
+  car_color TEXT,
+  car_license_plate TEXT NOT NULL,
+  check_in_date DATE NOT NULL,
+  check_out_date DATE NOT NULL,
+  actual_check_in TIMESTAMPTZ,
+  actual_check_out TIMESTAMPTZ,
+  status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'in_storage', 'completed', 'cancelled')),
+  notes TEXT,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now()
+);
+
+-- Indexes
+CREATE INDEX IF NOT EXISTS idx_destinations_slug ON travel_destinations(slug);
+CREATE INDEX IF NOT EXISTS idx_destinations_is_active ON travel_destinations(is_active);
+CREATE INDEX IF NOT EXISTS idx_partners_slug ON rental_partners(slug);
+CREATE INDEX IF NOT EXISTS idx_cars_partner ON partner_cars(partner_id);
+CREATE INDEX IF NOT EXISTS idx_cars_location ON partner_cars(location_id);
+CREATE INDEX IF NOT EXISTS idx_travel_bookings_user ON travel_bookings(user_id);
+CREATE INDEX IF NOT EXISTS idx_travel_bookings_car ON travel_bookings(car_id);
+CREATE INDEX IF NOT EXISTS idx_travel_bookings_dates ON travel_bookings(start_date, end_date);
+CREATE INDEX IF NOT EXISTS idx_storage_booking ON car_storage(travel_booking_id);
+
+-- Triggers
+DROP TRIGGER IF EXISTS trg_rental_partners_updated_at ON rental_partners;
+DROP TRIGGER IF EXISTS trg_partner_cars_updated_at ON partner_cars;
+DROP TRIGGER IF EXISTS trg_travel_bookings_updated_at ON travel_bookings;
+DROP TRIGGER IF EXISTS trg_car_storage_updated_at ON car_storage;
+DROP TRIGGER IF EXISTS trg_travel_destinations_updated_at ON travel_destinations;
+
+CREATE TRIGGER trg_travel_destinations_updated_at BEFORE UPDATE ON travel_destinations FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+CREATE TRIGGER trg_rental_partners_updated_at BEFORE UPDATE ON rental_partners FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+CREATE TRIGGER trg_partner_cars_updated_at BEFORE UPDATE ON partner_cars FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+CREATE TRIGGER trg_travel_bookings_updated_at BEFORE UPDATE ON travel_bookings FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+CREATE TRIGGER trg_car_storage_updated_at BEFORE UPDATE ON car_storage FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+
+-- RLS
+ALTER TABLE travel_destinations ENABLE ROW LEVEL SECURITY;
+ALTER TABLE rental_partners ENABLE ROW LEVEL SECURITY;
+ALTER TABLE partner_locations ENABLE ROW LEVEL SECURITY;
+ALTER TABLE partner_cars ENABLE ROW LEVEL SECURITY;
+ALTER TABLE travel_bookings ENABLE ROW LEVEL SECURITY;
+ALTER TABLE car_storage ENABLE ROW LEVEL SECURITY;
+
+-- Destinations
+DROP POLICY IF EXISTS "Anyone can view active destinations" ON travel_destinations;
+DROP POLICY IF EXISTS "Admins can manage destinations" ON travel_destinations;
+CREATE POLICY "Anyone can view active destinations" ON travel_destinations FOR SELECT USING (is_active = true);
+CREATE POLICY "Admins can manage destinations" ON travel_destinations FOR ALL USING (
+  EXISTS (SELECT 1 FROM profiles WHERE auth_id = auth.uid() AND role IN ('admin', 'moderator'))
+);
+
+-- Partners
+DROP POLICY IF EXISTS "Anyone can view active partners" ON rental_partners;
+DROP POLICY IF EXISTS "Admins can manage partners" ON rental_partners;
+CREATE POLICY "Anyone can view active partners" ON rental_partners FOR SELECT USING (is_active = true);
+CREATE POLICY "Admins can manage partners" ON rental_partners FOR ALL USING (
+  EXISTS (SELECT 1 FROM profiles WHERE auth_id = auth.uid() AND role IN ('admin', 'moderator'))
+);
+
+-- Locations
+DROP POLICY IF EXISTS "Anyone can view locations" ON partner_locations;
+DROP POLICY IF EXISTS "Admins can manage locations" ON partner_locations;
+DROP POLICY IF EXISTS "Partners can manage own locations" ON partner_locations;
+CREATE POLICY "Anyone can view locations" ON partner_locations FOR SELECT USING (true);
+CREATE POLICY "Admins can manage locations" ON partner_locations FOR ALL USING (
+  EXISTS (SELECT 1 FROM profiles WHERE auth_id = auth.uid() AND role IN ('admin', 'moderator'))
+);
+CREATE POLICY "Partners can manage own locations" ON partner_locations FOR ALL USING (
+  EXISTS (SELECT 1 FROM profiles WHERE auth_id = auth.uid() AND role = 'partner' AND partner_id = partner_locations.partner_id)
+);
+
+-- Cars
+DROP POLICY IF EXISTS "Anyone can view active available cars" ON partner_cars;
+DROP POLICY IF EXISTS "Admins can manage cars" ON partner_cars;
+DROP POLICY IF EXISTS "Partners can manage own cars" ON partner_cars;
+CREATE POLICY "Anyone can view active available cars" ON partner_cars FOR SELECT USING (is_active = true AND is_available = true);
+CREATE POLICY "Admins can manage cars" ON partner_cars FOR ALL USING (
+  EXISTS (SELECT 1 FROM profiles WHERE auth_id = auth.uid() AND role IN ('admin', 'moderator'))
+);
+CREATE POLICY "Partners can manage own cars" ON partner_cars FOR ALL USING (
+  EXISTS (SELECT 1 FROM profiles WHERE auth_id = auth.uid() AND role = 'partner' AND partner_id = partner_cars.partner_id)
+);
+
+-- Bookings
+DROP POLICY IF EXISTS "Users can view own travel bookings" ON travel_bookings;
+DROP POLICY IF EXISTS "Users can create travel booking" ON travel_bookings;
+DROP POLICY IF EXISTS "Users can update own travel booking" ON travel_bookings;
+DROP POLICY IF EXISTS "Admins can manage travel bookings" ON travel_bookings;
+DROP POLICY IF EXISTS "Partners can view own bookings" ON travel_bookings;
+DROP POLICY IF EXISTS "Partners can update own bookings" ON travel_bookings;
+CREATE POLICY "Users can view own travel bookings" ON travel_bookings FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "Users can create travel booking" ON travel_bookings FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Users can update own travel booking" ON travel_bookings FOR UPDATE USING (auth.uid() = user_id);
+CREATE POLICY "Admins can manage travel bookings" ON travel_bookings FOR ALL USING (
+  EXISTS (SELECT 1 FROM profiles WHERE auth_id = auth.uid() AND role IN ('admin', 'moderator'))
+);
+CREATE POLICY "Partners can view own bookings" ON travel_bookings FOR SELECT USING (
+  EXISTS (SELECT 1 FROM profiles WHERE auth_id = auth.uid() AND role = 'partner' AND partner_id = travel_bookings.partner_id)
+);
+CREATE POLICY "Partners can update own bookings" ON travel_bookings FOR UPDATE USING (
+  EXISTS (SELECT 1 FROM profiles WHERE auth_id = auth.uid() AND role = 'partner' AND partner_id = travel_bookings.partner_id)
+);
+
+-- Storage
+DROP POLICY IF EXISTS "Users can view own car storage" ON car_storage;
+DROP POLICY IF EXISTS "Admins can manage car storage" ON car_storage;
+DROP POLICY IF EXISTS "Partners can manage own storage" ON car_storage;
+CREATE POLICY "Users can view own car storage" ON car_storage FOR SELECT USING (
+  EXISTS (SELECT 1 FROM travel_bookings WHERE travel_bookings.id = car_storage.travel_booking_id AND travel_bookings.user_id = auth.uid())
+);
+CREATE POLICY "Admins can manage car storage" ON car_storage FOR ALL USING (
+  EXISTS (SELECT 1 FROM profiles WHERE auth_id = auth.uid() AND role IN ('admin', 'moderator'))
+);
+CREATE POLICY "Partners can manage own storage" ON car_storage FOR ALL USING (
+  EXISTS (SELECT 1 FROM profiles WHERE auth_id = auth.uid() AND role = 'partner' AND partner_id = car_storage.partner_id)
+);
+
+-- ====================================================================
+-- Seed data
+-- ====================================================================
+INSERT INTO travel_destinations (id, name, slug, description, region, latitude, longitude, price_from, hero_image, sort_order) VALUES
+  ('a0000000-0000-4000-8000-000000000001', 'Сочи', 'sochi', 'Жемчужина Черноморского побережья', 'Краснодарский край', 43.60280000, 39.73430000, 2500, 'https://images.unsplash.com/photo-1596484552834-086a760e5a59?w=800&q=80', 1),
+  ('a0000000-0000-4000-8000-000000000002', 'Анапа', 'anapa', 'Солнце, песчаные пляжи и целебный воздух', 'Краснодарский край', 44.89440000, 37.31670000, 1800, 'https://images.unsplash.com/photo-1559827260-dc66d52bef19?w=800&q=80', 2),
+  ('a0000000-0000-4000-8000-000000000003', 'Геленджик', 'gelendzhik', 'Уютные бухты и набережная', 'Краснодарский край', 44.56110000, 38.07670000, 2000, 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=800&q=80', 3),
+  ('a0000000-0000-4000-8000-000000000004', 'Туапсе', 'tuapse', 'Город-порт на Черноморском побережье', 'Краснодарский край', 44.09370000, 39.07420000, 1500, 'https://images.unsplash.com/photo-1473496169904-658ba7c44d8a?w=800&q=80', 4),
+  ('a0000000-0000-4000-8000-000000000005', 'Крым', 'crimea', 'Полуостров с уникальной природой', 'Республика Крым', 44.95210000, 34.10240000, 2200, 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=800&q=80', 5)
+ON CONFLICT (id) DO UPDATE SET
+  price_from = EXCLUDED.price_from,
+  hero_image = EXCLUDED.hero_image;
+
+INSERT INTO rental_partners (id, name, slug, description, commission_rate, rating) VALUES
+  ('b0000000-0000-4000-8000-000000000001', 'АвтоМоре Сочи', 'avtomore-sochi', 'Крупнейший прокат на Черноморском побережье', 15.00, 4.7),
+  ('b0000000-0000-4000-8000-000000000002', 'Южный Прокат', 'yuzhny-prokat', 'Надёжный партнёр для ваших поездок', 12.00, 4.5)
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO partner_locations (id, partner_id, destination_id, name, address, latitude, longitude, phone) VALUES
+  ('c0000000-0000-4000-8000-000000000101', 'b0000000-0000-4000-8000-000000000001', 'a0000000-0000-4000-8000-000000000001', 'АвтоМоре — Сочи', 'ул. Курортный проспект, 89, Сочи', 43.58550000, 39.72280000, '+7 (862) 200-10-01'),
+  ('c0000000-0000-4000-8000-000000000102', 'b0000000-0000-4000-8000-000000000001', 'a0000000-0000-4000-8000-000000000002', 'АвтоМоре — Анапа', 'ул. Ленина, 12, Анапа', 44.89350000, 37.31850000, '+7 (861) 330-20-02'),
+  ('c0000000-0000-4000-8000-000000000103', 'b0000000-0000-4000-8000-000000000001', 'a0000000-0000-4000-8000-000000000003', 'АвтоМоре — Геленджик', 'ул. Революционная, 45, Геленджик', 44.56200000, 38.07550000, '+7 (861) 410-30-03'),
+  ('c0000000-0000-4000-8000-000000000201', 'b0000000-0000-4000-8000-000000000002', 'a0000000-0000-4000-8000-000000000001', 'Южный Прокат — Сочи', 'ул. Навагинская, 7, Сочи', 43.58700000, 39.72400000, '+7 (862) 250-40-04'),
+  ('c0000000-0000-4000-8000-000000000202', 'b0000000-0000-4000-8000-000000000002', 'a0000000-0000-4000-8000-000000000002', 'Южный Прокат — Анапа', 'пр-т Пионерский, 38, Анапа', 44.89200000, 37.32000000, '+7 (861) 330-50-05')
+ON CONFLICT (id) DO NOTHING;
+
+-- Sample cars (subset for seed)
+INSERT INTO partner_cars (id, partner_id, location_id, brand, model, year, transmission, fuel_type, seats, price_per_day, deposit, is_available, is_active) VALUES
+  ('d0000000-0000-4000-8000-000000000101', 'b0000000-0000-4000-8000-000000000001', 'c0000000-0000-4000-8000-000000000101', 'Hyundai', 'Solaris', 2021, 'automatic', 'gasoline', 5, 2500, 5000, true, true),
+  ('d0000000-0000-4000-8000-000000000102', 'b0000000-0000-4000-8000-000000000001', 'c0000000-0000-4000-8000-000000000101', 'Toyota', 'Camry', 2023, 'automatic', 'gasoline', 5, 4500, 10000, true, true),
+  ('d0000000-0000-4000-8000-000000000105', 'b0000000-0000-4000-8000-000000000001', 'c0000000-0000-4000-8000-000000000102', 'Lada', 'Vesta', 2022, 'manual', 'gasoline', 5, 1800, 3000, true, true),
+  ('d0000000-0000-4000-8000-000000000109', 'b0000000-0000-4000-8000-000000000001', 'c0000000-0000-4000-8000-000000000103', 'Hyundai', 'Creta', 2022, 'automatic', 'gasoline', 5, 3000, 6000, true, true),
+  ('d0000000-0000-4000-8000-000000000201', 'b0000000-0000-4000-8000-000000000002', 'c0000000-0000-4000-8000-000000000201', 'Renault', 'Duster', 2022, 'manual', 'gasoline', 5, 2200, 4000, true, true),
+  ('d0000000-0000-4000-8000-000000000202', 'b0000000-0000-4000-8000-000000000002', 'c0000000-0000-4000-8000-000000000201', 'Hyundai', 'Tucson', 2023, 'automatic', 'gasoline', 5, 3500, 7000, true, true)
+ON CONFLICT (id) DO NOTHING;
+
+SELECT 'Прибой v2 schema deployed' AS status;

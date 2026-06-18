@@ -3,6 +3,7 @@ import { useNavigate, Navigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { AdminLayout } from './components/AdminLayout';
 import styles from './AdminTravel.module.css';
+import { getAdminTravelStats } from '../../lib/travel/api';
 import type { TravelBooking } from '../../lib/travel/types';
 
 interface DashboardStats {
@@ -91,13 +92,21 @@ const QUICK_LINKS = [
 export function AdminTravelDashboard() {
   const { hasAdminAccess } = useAuth();
   const navigate = useNavigate();
-  const [stats] = useState<DashboardStats>(MOCK_STATS);
-  const [recentBookings] = useState<Partial<TravelBooking>[]>(MOCK_RECENT_BOOKINGS);
+  const [stats, setStats] = useState({ totalBookings: 0, activeTrips: 0, totalRevenue: 0, totalCommission: 0 });
+  const [recentBookings, setRecentBookings] = useState<TravelBooking[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const timer = setTimeout(() => setLoading(false), 300);
-    return () => clearTimeout(timer);
+    getAdminTravelStats().then((data) => {
+      setStats({
+        totalBookings: data.total_bookings,
+        activeTrips: data.active_bookings,
+        totalRevenue: data.total_revenue,
+        totalCommission: data.total_commission,
+      });
+      setRecentBookings(data.recent_bookings);
+      setLoading(false);
+    });
   }, []);
 
   if (!hasAdminAccess) {

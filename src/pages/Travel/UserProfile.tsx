@@ -1,7 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import { useBookings } from '../../hooks/useBookings';
+import { cancelTravelBooking } from '../../lib/travel/api';
 import { Button } from '../../components/Button/Button';
+import type { TravelBooking } from '../../lib/travel/types';
 import styles from './UserProfile.module.css';
 
 interface OwnCarInfo {
@@ -11,79 +14,34 @@ interface OwnCarInfo {
   license_plate: string;
 }
 
-interface TravelBookingData {
-  id: string;
-  user_id: string;
-  car_id: string;
-  destination: string;
-  start_date: string;
-  end_date: string;
-  car_brand: string;
-  car_model: string;
-  car_color: string;
-  car_plate: string;
-  storage_enabled: boolean;
-  rent_price: number;
-  storage_price: number;
-  service_fee: number;
-  total_price: number;
-  status: string;
-  partner_name: string;
-  partner_car_brand: string;
-  partner_car_model: string;
-  transmission: string;
-  price_per_day: number;
-  created_at: string;
-}
-
-function formatDate(dateStr: string): string {
-  const date = new Date(dateStr);
-  return date.toLocaleDateString('ru-RU', {
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-  });
-}
-
 function formatDateShort(dateStr: string): string {
-  const date = new Date(dateStr);
-  return date.toLocaleDateString('ru-RU', {
+  return new Date(dateStr).toLocaleDateString('ru-RU', {
     day: 'numeric',
     month: 'short',
     year: 'numeric',
   });
 }
 
-function getDestinationLabel(slug: string): string {
-  switch (slug) {
-    case 'sochi': return 'Сочи';
-    case 'anapa': return 'Анапа';
-    case 'gelendzhik': return 'Геленджик';
-    case 'novorossiysk': return 'Новороссийск';
-    default: return slug;
-  }
-}
-
 function getStatusLabel(status: string): string {
-  switch (status) {
-    case 'pending': return 'Ожидает подтверждения';
-    case 'confirmed': return 'Подтверждено';
-    case 'active': return 'Активно';
-    case 'completed': return 'Завершено';
-    case 'cancelled': return 'Отменено';
-    default: return status;
-  }
+  const map: Record<string, string> = {
+    pending: 'Ожидает подтверждения',
+    confirmed: 'Подтверждено',
+    active: 'Активно',
+    completed: 'Завершено',
+    cancelled: 'Отменено',
+  };
+  return map[status] || status;
 }
 
 function getStatusClass(status: string): string {
-  switch (status) {
-    case 'pending': return styles.statusPending;
-    case 'confirmed': return styles.statusConfirmed;
-    case 'active': return styles.statusActive;
-    case 'completed': return styles.statusCompleted;
-    case 'cancelled': return styles.statusCancelled;
-    default: return '';
-  }
+  const map: Record<string, string> = {
+    pending: styles.statusPending,
+    confirmed: styles.statusConfirmed,
+    active: styles.statusActive,
+    completed: styles.statusCompleted,
+    cancelled: styles.statusCancelled,
+  };
+  return map[status] || '';
 }
 
 const STORAGE_KEY = 'priboi_user_car';
@@ -104,12 +62,10 @@ function saveOwnCar(car: OwnCarInfo): void {
 export function UserProfile() {
   const { user, hasAdminAccess } = useAuth();
   const navigate = useNavigate();
-  const [trips, setTrips] = useState<TravelBookingData[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { bookings, loading, refresh } = useBookings();
   const [activeTab, setActiveTab] = useState<'active' | 'history'>('active');
   const [cancellingId, setCancellingId] = useState<string | null>(null);
 
-  // Own car state
   const [ownCar, setOwnCar] = useState<OwnCarInfo | null>(null);
   const [editingCar, setEditingCar] = useState(false);
   const [carForm, setCarForm] = useState<OwnCarInfo>({ brand: '', model: '', color: '', license_plate: '' });
@@ -122,49 +78,19 @@ export function UserProfile() {
     }
   }, []);
 
-  useEffect(() => {
-    if (!user) {
-      setLoading(false);
-      return;
-    }
-
-    try {
-      const stored = localStorage.getItem('priboi_travel_bookings');
-      if (stored) {
-        const allBookings: TravelBookingData[] = JSON.parse(stored);
-        const userBookings = allBookings.filter(b => b.user_id === user.id);
-        userBookings.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-        setTrips(userBookings);
-      }
-    } catch (err) {
-      console.error('Error loading trips:', err);
-    } finally {
-      setLoading(false);
-    }
-  }, [user]);
-
-  const handleCancel = useCallback((tripId: string) => {
+  const handleCancel = useCallback(async (tripId: string) => {
     if (!confirm('Вы уверены, что хотите отменить поездку?')) return;
 
     setCancellingId(tripId);
     try {
-      const stored = localStorage.getItem('priboi_travel_bookings');
-      if (stored) {
-        const bookings: TravelBookingData[] = JSON.parse(stored);
-        const updated = bookings.map(b =>
-          b.id === tripId ? { ...b, status: 'cancelled' } : b
-        );
-        localStorage.setItem('priboi_travel_bookings', JSON.stringify(updated));
-        setTrips(prev =>
-          prev.map(t => t.id === tripId ? { ...t, status: 'cancelled' } : t)
-        );
-      }
+      await cancelTravelBooking(tripId);
+      await refresh();
     } catch (err) {
       console.error('Error cancelling trip:', err);
     } finally {
       setCancellingId(null);
     }
-  }, []);
+  }, [refresh]);
 
   const handleSaveCar = () => {
     if (!carForm.brand.trim() || !carForm.model.trim()) return;
@@ -185,13 +111,89 @@ export function UserProfile() {
     setCarForm({ brand: '', model: '', color: '', license_plate: '' });
   };
 
-  const activeTrips = trips.filter(t =>
+  const activeTrips = bookings.filter((t) =>
     t.status === 'pending' || t.status === 'confirmed' || t.status === 'active'
   );
-  const historyTrips = trips.filter(t =>
+  const historyTrips = bookings.filter((t) =>
     t.status === 'completed' || t.status === 'cancelled'
   );
   const displayTrips = activeTab === 'active' ? activeTrips : historyTrips;
+
+  const renderTrip = (trip: TravelBooking) => {
+    const destName = trip.destination?.name || 'Курорт';
+    const carName = trip.car ? `${trip.car.brand} ${trip.car.model}` : 'Автомобиль';
+    const partnerName = trip.partner?.name || 'Партнёр';
+
+    return (
+      <div key={trip.id} className={styles.tripCard}>
+        <div className={styles.tripHeader}>
+          <h3 className={styles.tripDestination}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
+              <circle cx="12" cy="10" r="3" />
+            </svg>
+            {destName}
+          </h3>
+          <span className={`${styles.tripStatus} ${getStatusClass(trip.status)}`}>
+            {getStatusLabel(trip.status)}
+          </span>
+        </div>
+
+        <div className={styles.tripDetails}>
+          <div className={styles.tripDetailRow}>
+            <span>Автомобиль</span>
+            <span className={styles.tripDetailValue}>{carName}</span>
+          </div>
+          <div className={styles.tripDetailRow}>
+            <span>Партнёр</span>
+            <span className={styles.tripDetailValue}>{partnerName}</span>
+          </div>
+          <div className={styles.tripDetailRow}>
+            <span>Период</span>
+            <span className={styles.tripDetailValue}>
+              {formatDateShort(trip.start_date)} — {formatDateShort(trip.end_date)}
+            </span>
+          </div>
+          {trip.has_storage && trip.own_car_license_plate && (
+            <div className={styles.tripDetailRow}>
+              <span>Ваше авто на хранении</span>
+              <span className={styles.tripDetailValue}>
+                {trip.own_car_brand} {trip.own_car_model} ({trip.own_car_license_plate})
+              </span>
+            </div>
+          )}
+          <div className={styles.tripDetailRow}>
+            <span>Стоимость</span>
+            <span className={styles.tripPrice}>
+              {trip.total_price.toLocaleString('ru-RU')} ₽
+            </span>
+          </div>
+        </div>
+
+        <div className={styles.tripActions}>
+          {trip.status === 'confirmed' && (
+            <Button
+              variant="primary"
+              size="small"
+              onClick={() => navigate(`/booking/success?id=${trip.id}`)}
+            >
+              Открыть QR-код
+            </Button>
+          )}
+          {(trip.status === 'pending' || trip.status === 'confirmed') && (
+            <Button
+              variant="ghost"
+              size="small"
+              onClick={() => handleCancel(trip.id)}
+              disabled={cancellingId === trip.id}
+            >
+              {cancellingId === trip.id ? 'Отмена...' : 'Отменить'}
+            </Button>
+          )}
+        </div>
+      </div>
+    );
+  };
 
   if (!user) {
     return (
@@ -220,7 +222,6 @@ export function UserProfile() {
   return (
     <div className={styles.page}>
       <div className={styles.container}>
-        {/* Header */}
         <div className={styles.header}>
           <div>
             <h1 className={styles.title}>Личный кабинет</h1>
@@ -232,13 +233,12 @@ export function UserProfile() {
                 Админ-панель
               </Button>
             )}
-            <Button variant="primary" onClick={() => navigate('/travel/search')}>
+            <Button variant="primary" onClick={() => navigate('/search')}>
               Новая поездка
             </Button>
           </div>
         </div>
 
-        {/* === My Car Section === */}
         <section className={styles.section}>
           <div className={styles.sectionHeader}>
             <h2 className={styles.sectionTitle}>
@@ -264,7 +264,7 @@ export function UserProfile() {
                       type="text"
                       className={styles.carFormInput}
                       value={carForm.brand}
-                      onChange={e => setCarForm(f => ({ ...f, brand: e.target.value }))}
+                      onChange={(e) => setCarForm((f) => ({ ...f, brand: e.target.value }))}
                       placeholder="Напр. Lada"
                     />
                   </div>
@@ -274,7 +274,7 @@ export function UserProfile() {
                       type="text"
                       className={styles.carFormInput}
                       value={carForm.model}
-                      onChange={e => setCarForm(f => ({ ...f, model: e.target.value }))}
+                      onChange={(e) => setCarForm((f) => ({ ...f, model: e.target.value }))}
                       placeholder="Напр. Granta"
                     />
                   </div>
@@ -286,7 +286,7 @@ export function UserProfile() {
                       type="text"
                       className={styles.carFormInput}
                       value={carForm.color}
-                      onChange={e => setCarForm(f => ({ ...f, color: e.target.value }))}
+                      onChange={(e) => setCarForm((f) => ({ ...f, color: e.target.value }))}
                       placeholder="Напр. Белый"
                     />
                   </div>
@@ -296,7 +296,7 @@ export function UserProfile() {
                       type="text"
                       className={styles.carFormInput}
                       value={carForm.license_plate}
-                      onChange={e => setCarForm(f => ({ ...f, license_plate: e.target.value }))}
+                      onChange={(e) => setCarForm((f) => ({ ...f, license_plate: e.target.value }))}
                       placeholder="Напр. А123ВВ"
                     />
                   </div>
@@ -333,10 +333,10 @@ export function UserProfile() {
                   </div>
                 </div>
                 <div className={styles.carActions}>
-                  <button className={styles.carActionBtn} onClick={handleEditCar}>
+                  <button type="button" className={styles.carActionBtn} onClick={handleEditCar}>
                     Редактировать
                   </button>
-                  <button className={styles.carActionDangerBtn} onClick={handleRemoveCar}>
+                  <button type="button" className={styles.carActionDangerBtn} onClick={handleRemoveCar}>
                     Удалить
                   </button>
                 </div>
@@ -354,7 +354,6 @@ export function UserProfile() {
           </div>
         </section>
 
-        {/* === My Bookings Section === */}
         <section className={styles.section}>
           <div className={styles.sectionHeader}>
             <h2 className={styles.sectionTitle}>
@@ -368,9 +367,9 @@ export function UserProfile() {
             </h2>
           </div>
 
-          {/* Tabs */}
           <div className={styles.tabs}>
             <button
+              type="button"
               className={`${styles.tab} ${activeTab === 'active' ? styles.tabActive : ''}`}
               onClick={() => setActiveTab('active')}
             >
@@ -380,6 +379,7 @@ export function UserProfile() {
               )}
             </button>
             <button
+              type="button"
               className={`${styles.tab} ${activeTab === 'history' ? styles.tabActive : ''}`}
               onClick={() => setActiveTab('history')}
             >
@@ -390,7 +390,6 @@ export function UserProfile() {
             </button>
           </div>
 
-          {/* Trip List */}
           <div className={styles.list}>
             {loading ? (
               <div className={styles.loading}>
@@ -398,77 +397,7 @@ export function UserProfile() {
                 <p>Загрузка поездок...</p>
               </div>
             ) : displayTrips.length > 0 ? (
-              displayTrips.map((trip) => (
-                <div key={trip.id} className={styles.tripCard}>
-                  <div className={styles.tripHeader}>
-                    <h3 className={styles.tripDestination}>
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
-                        <circle cx="12" cy="10" r="3" />
-                      </svg>
-                      {getDestinationLabel(trip.destination)}
-                    </h3>
-                    <span className={`${styles.tripStatus} ${getStatusClass(trip.status)}`}>
-                      {getStatusLabel(trip.status)}
-                    </span>
-                  </div>
-
-                  <div className={styles.tripDetails}>
-                    <div className={styles.tripDetailRow}>
-                      <span>Автомобиль</span>
-                      <span className={styles.tripDetailValue}>
-                        {trip.partner_car_brand} {trip.partner_car_model}
-                      </span>
-                    </div>
-                    <div className={styles.tripDetailRow}>
-                      <span>Партнёр</span>
-                      <span className={styles.tripDetailValue}>{trip.partner_name}</span>
-                    </div>
-                    <div className={styles.tripDetailRow}>
-                      <span>Период</span>
-                      <span className={styles.tripDetailValue}>
-                        {formatDateShort(trip.start_date)} — {formatDateShort(trip.end_date)}
-                      </span>
-                    </div>
-                    {trip.storage_enabled && (
-                      <div className={styles.tripDetailRow}>
-                        <span>Ваше авто на хранении</span>
-                        <span className={styles.tripDetailValue}>
-                          {trip.car_brand} {trip.car_model} ({trip.car_plate})
-                        </span>
-                      </div>
-                    )}
-                    <div className={styles.tripDetailRow}>
-                      <span>Стоимость</span>
-                      <span className={styles.tripPrice}>
-                        {trip.total_price.toLocaleString('ru-RU')} ₽
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className={styles.tripActions}>
-                    {trip.status === 'confirmed' && (
-                      <Button
-                        variant="primary"
-                        size="small"
-                        onClick={() => navigate(`/travel/booking/success?id=${trip.id}`)}
-                      >
-                        Открыть QR-код
-                      </Button>
-                    )}
-                    {(trip.status === 'pending' || trip.status === 'confirmed') && (
-                      <Button
-                        variant="ghost"
-                        size="small"
-                        onClick={() => handleCancel(trip.id)}
-                        disabled={cancellingId === trip.id}
-                      >
-                        {cancellingId === trip.id ? 'Отмена...' : 'Отменить'}
-                      </Button>
-                    )}
-                  </div>
-                </div>
-              ))
+              displayTrips.map(renderTrip)
             ) : (
               <div className={styles.emptyState}>
                 <div className={styles.emptyIcon}>
@@ -488,7 +417,7 @@ export function UserProfile() {
                     : 'У вас пока нет завершённых поездок'}
                 </p>
                 {activeTab === 'active' && (
-                  <Button variant="primary" onClick={() => navigate('/travel/search')}>
+                  <Button variant="primary" onClick={() => navigate('/search')}>
                     Забронировать поездку
                   </Button>
                 )}
@@ -497,9 +426,8 @@ export function UserProfile() {
           </div>
         </section>
 
-        {/* Navigation back */}
         <div className={styles.bottomNav}>
-          <button className={styles.backLink} onClick={() => navigate('/travel')}>
+          <button type="button" className={styles.backLink} onClick={() => navigate('/')}>
             ← На главную
           </button>
         </div>

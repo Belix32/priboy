@@ -1,5 +1,6 @@
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import { getSupabaseClient, isSupabaseConfigured } from '../lib/supabase';
+import type { Profile } from '../lib/travel/types';
 
 export interface User {
   id: string;
@@ -8,6 +9,7 @@ export interface User {
   phone: string;
   created_at?: string;
   role?: 'user' | 'moderator' | 'admin' | 'partner';
+  partnerId?: string | null;
 }
 
 interface AuthContextType {
@@ -22,6 +24,7 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<{ success: boolean; error?: string; role?: string }>;
   register: (name: string, email: string, phone: string, password: string) => Promise<{ success: boolean; error?: string }>;
   logout: () => Promise<void>;
+  refreshProfile: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -37,7 +40,7 @@ function generateSecureToken(): string {
 
 function saveUserSession(user: User): void {
   const token = generateSecureToken();
-  const data = { id: user.id, email: user.email, role: user.role || 'user', token };
+  const data = { id: user.id, email: user.email, role: user.role || 'user', partnerId: user.partnerId, token };
   localStorage.setItem(AUTH_TOKEN_KEY, token);
   localStorage.setItem(USER_KEY, btoa(JSON.stringify(data)));
 }
@@ -52,9 +55,10 @@ function loadUserSession(): User | null {
     return {
       id: data.id,
       email: data.email,
-      name: '',
-      phone: '',
+      name: data.name || '',
+      phone: data.phone || '',
       role: data.role || 'user',
+      partnerId: data.partnerId || null,
     };
   } catch {
     clearSession();
@@ -67,49 +71,123 @@ function clearSession(): void {
   localStorage.removeItem(AUTH_TOKEN_KEY);
 }
 
-function saveUserToRegistry(user: User): void {
-  try {
-    const key = 'priboi_users';
-    const raw = localStorage.getItem(key);
-    const users: any[] = raw ? JSON.parse(raw) : [];
-    const idx = users.findIndex((u: any) => u.id === user.id);
-    const entry = {
-      id: user.id,
-      name: user.name,
-      email: user.email,
-      phone: user.phone,
-      role: user.role || 'user',
-      is_active: true,
-      created_at: new Date().toISOString(),
-      last_login: new Date().toISOString(),
-    };
-    if (idx !== -1) {
-      users[idx] = { ...users[idx], ...entry, last_login: new Date().toISOString() };
-    } else {
-      users.push(entry);
-    }
-    localStorage.setItem(key, JSON.stringify(users));
-  } catch (e) {
-    console.error('Error saving user to registry:', e);
-  }
-}
-
 function getAdminEmail(): string {
   return import.meta.env.VITE_ADMIN_EMAIL || '';
 }
 
 function isAdminEmail(email: string): boolean {
-  return email.toLowerCase().trim() === getAdminEmail().toLowerCase().trim();
+  const adminEmail = getAdminEmail();
+  return adminEmail !== '' && email.toLowerCase().trim() === adminEmail.toLowerCase().trim();
+}
+
+async function syncAdminRole(): Promise<void> {
+  if (!isSupabaseConfigured()) return;
+  try {
+    const supabase = getSupabaseClient();
+    await supabase.rpc('sync_admin_role');
+  } catch {
+    /* RPC may not exist until migration 002 is applied */
+  }
+}
+
+async function fetchProfile(authId: string): Promise<Profile | null> {
+  if (!isSupabaseConfigured()) return null;
+  try {
+    const supabase = getSupabaseClient();
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('auth_id', authId)
+      .single();
+    if (error) return null;
+    return data as Profile;
+  } catch {
+    return null;
+  }
+}
+
+async function loadUserFromSession(email: string, authId: string): Promise<User> {
+  await syncAdminRole();
+  const profile = await fetchProfile(authId);
+  if (profile) {
+    return profileToUser(profile, email);
+  }
+  return {
+    id: authId,
+    name: email.split('@')[0],
+    email,
+    phone: '',
+    role: isAdminEmail(email) ? 'admin' : 'user',
+  };
+}
+
+function profileToUser(profile: Profile, email: string): User {
+  return {
+    id: profile.auth_id,
+    name: profile.name || email.split('@')[0],
+    email,
+    phone: profile.phone || '',
+    role: profile.role,
+    partnerId: profile.partner_id,
+  };
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  const refreshProfile = useCallback(async () => {
+    if (!isSupabaseConfigured()) return;
+    try {
+      const supabase = getSupabaseClient();
+      const { data: sessionData } = await supabase.auth.getSession();
+      const session = sessionData?.session;
+      if (!session?.user) return;
+
+      const email = session.user.email || '';
+      const userObj = await loadUserFromSession(email, session.user.id);
+      setUser(userObj);
+      saveUserSession(userObj);
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
   useEffect(() => {
-    const localUser = loadUserSession();
-    if (localUser) setUser(localUser);
-    setIsLoading(false);
+    async function init() {
+      if (isSupabaseConfigured()) {
+        try {
+          const supabase = getSupabaseClient();
+          const { data: sessionData } = await supabase.auth.getSession();
+          if (sessionData?.session?.user) {
+            const email = sessionData.session.user.email || '';
+            const userObj = await loadUserFromSession(email, sessionData.session.user.id);
+            setUser(userObj);
+            saveUserSession(userObj);
+          }
+
+          supabase.auth.onAuthStateChange(async (_event: string, session: { user: { id: string; email?: string } } | null) => {
+            if (session?.user) {
+              const email = session.user.email || '';
+              const userObj = await loadUserFromSession(email, session.user.id);
+              setUser(userObj);
+              saveUserSession(userObj);
+            } else {
+              setUser(null);
+              clearSession();
+            }
+          });
+        } catch {
+          const localUser = loadUserSession();
+          if (localUser) setUser(localUser);
+        }
+      } else {
+        const localUser = loadUserSession();
+        if (localUser) setUser(localUser);
+      }
+      setIsLoading(false);
+    }
+    init();
   }, []);
 
   const login = async (email: string, password: string): Promise<{ success: boolean; error?: string; role?: string }> => {
@@ -127,7 +205,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       };
       setUser(mockUser);
       saveUserSession(mockUser);
-      saveUserToRegistry(mockUser);
       return { success: true, role: mockUser.role };
     }
 
@@ -146,13 +223,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       if (data?.user) {
-        const userObj: User = {
-          id: data.user.id,
-          name: data.user.email?.split('@')[0] || 'Пользователь',
-          email: data.user.email || email,
-          phone: '',
-          role: isAdminEmail(email) ? 'admin' : 'user',
-        };
+        const userObj = await loadUserFromSession(data.user.email || email, data.user.id);
         setUser(userObj);
         saveUserSession(userObj);
         return { success: true, role: userObj.role };
@@ -182,14 +253,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       };
       setUser(mockUser);
       saveUserSession(mockUser);
-      // Save to users registry for admin panel
-      saveUserToRegistry(mockUser);
       return { success: true };
     }
 
     try {
       const supabase = getSupabaseClient();
-      const { error } = await supabase.auth.signUp({
+      const { data, error } = await supabase.auth.signUp({
         email: email.toLowerCase().trim(),
         password,
         options: { data: { name: name.trim(), phone: phone.trim() } },
@@ -200,6 +269,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           return { success: false, error: 'Пользователь с таким email уже существует' };
         }
         return { success: false, error: 'Ошибка регистрации. Попробуйте позже.' };
+      }
+
+      if (data?.user && data.session) {
+        const userObj = await loadUserFromSession(data.user.email || email, data.user.id);
+        setUser({ ...userObj, name: name.trim(), phone: phone.trim() });
+        saveUserSession({ ...userObj, name: name.trim(), phone: phone.trim() });
       }
 
       return { success: true };
@@ -228,11 +303,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         isAdmin: user?.role === 'admin',
         isModerator: user?.role === 'admin' || user?.role === 'moderator',
         isPartner: user?.role === 'partner',
-        partnerId: user?.role === 'partner' ? user.id : null,
+        partnerId: user?.partnerId || null,
         hasAdminAccess: user?.role === 'admin' || user?.role === 'moderator',
         login,
         register,
         logout,
+        refreshProfile,
       }}
     >
       {children}

@@ -3,6 +3,9 @@ import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { Button } from '../../components/Button/Button';
 import { Input } from '../../components/Input/Input';
+import { getCarById, getDestinationBySlug, createTravelBooking, calculateTravelPrice } from '../../lib/travel/api';
+import { STORAGE_PRICE_PER_DAY } from '../../lib/travel/seed';
+import type { PartnerCar } from '../../lib/travel/types';
 import styles from './TravelBooking.module.css';
 import sharedStyles from './Travel.module.css';
 
@@ -24,67 +27,6 @@ function loadProfileCar(): ProfileCar | null {
   }
 }
 
-interface PartnerInfo {
-  id: string;
-  name: string;
-  rating: number;
-}
-
-interface PartnerCar {
-  id: string;
-  partner_id: string;
-  brand: string;
-  model: string;
-  year: number;
-  transmission: string;
-  seats: number;
-  price_per_day: number;
-  deposit: number;
-  image: string;
-  partner: PartnerInfo;
-}
-
-interface TravelBookingData {
-  id: string;
-  user_id: string;
-  car_id: string;
-  destination: string;
-  start_date: string;
-  end_date: string;
-  car_brand: string;
-  car_model: string;
-  car_color: string;
-  car_plate: string;
-  storage_enabled: boolean;
-  rent_price: number;
-  storage_price: number;
-  service_fee: number;
-  total_price: number;
-  status: string;
-  partner_name: string;
-  partner_car_brand: string;
-  partner_car_model: string;
-  transmission: string;
-  price_per_day: number;
-  created_at: string;
-}
-
-const MOCK_CARS: PartnerCar[] = [
-  { id: 'car-1', partner_id: 'partner-1', brand: 'Hyundai', model: 'Solaris', year: 2023, transmission: 'automatic', seats: 5, price_per_day: 2500, deposit: 10000, image: '', partner: { id: 'partner-1', name: 'АвтоМоре Сочи', rating: 4.5 } },
-  { id: 'car-2', partner_id: 'partner-1', brand: 'Kia', model: 'Rio', year: 2023, transmission: 'automatic', seats: 5, price_per_day: 2800, deposit: 10000, image: '', partner: { id: 'partner-1', name: 'АвтоМоре Сочи', rating: 4.5 } },
-  { id: 'car-3', partner_id: 'partner-1', brand: 'Toyota', model: 'Camry', year: 2024, transmission: 'automatic', seats: 5, price_per_day: 4500, deposit: 20000, image: '', partner: { id: 'partner-1', name: 'АвтоМоре Сочи', rating: 4.5 } },
-  { id: 'car-4', partner_id: 'partner-2', brand: 'Renault', model: 'Duster', year: 2023, transmission: 'manual', seats: 5, price_per_day: 3200, deposit: 15000, image: '', partner: { id: 'partner-2', name: 'Южный Прокат', rating: 4.2 } },
-  { id: 'car-5', partner_id: 'partner-2', brand: 'Lada', model: 'Vesta', year: 2024, transmission: 'manual', seats: 5, price_per_day: 2000, deposit: 8000, image: '', partner: { id: 'partner-2', name: 'Южный Прокат', rating: 4.2 } },
-  { id: 'car-6', partner_id: 'partner-2', brand: 'Nissan', model: 'Qashqai', year: 2023, transmission: 'automatic', seats: 5, price_per_day: 3800, deposit: 18000, image: '', partner: { id: 'partner-2', name: 'Южный Прокат', rating: 4.2 } },
-];
-
-function generateId(): string {
-  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
-    return crypto.randomUUID();
-  }
-  return Date.now().toString(36) + Math.random().toString(36).substr(2);
-}
-
 function formatDateDisplay(dateStr: string): string {
   const date = new Date(dateStr);
   return date.toLocaleDateString('ru-RU', {
@@ -92,12 +34,6 @@ function formatDateDisplay(dateStr: string): string {
     month: 'long',
     year: 'numeric',
   });
-}
-
-function calcDays(start: string, end: string): number {
-  const s = new Date(start);
-  const e = new Date(end);
-  return Math.max(1, Math.ceil((e.getTime() - s.getTime()) / (1000 * 60 * 60 * 24)));
 }
 
 export function TravelBooking() {
@@ -130,7 +66,7 @@ export function TravelBooking() {
 
   const [submitting, setSubmitting] = useState(false);
 
-  // Load car
+  // Load car from API
   useEffect(() => {
     if (!carId) {
       setError('Автомобиль не указан');
@@ -138,18 +74,11 @@ export function TravelBooking() {
       return;
     }
 
-    // Simulate API load
-    const timer = setTimeout(() => {
-      const found = MOCK_CARS.find(c => c.id === carId);
-      if (found) {
-        setCar(found);
-      } else {
-        setError('Автомобиль не найден');
-      }
+    getCarById(carId).then((found) => {
+      if (found) setCar(found);
+      else setError('Автомобиль не найден');
       setLoading(false);
-    }, 300);
-
-    return () => clearTimeout(timer);
+    });
   }, [carId]);
 
   // Load saved car from user profile
@@ -160,29 +89,16 @@ export function TravelBooking() {
     }
   }, []);
 
-  const days = useMemo(() => {
-    if (!startDate || !endDate) return 0;
-    return calcDays(startDate, endDate);
-  }, [startDate, endDate]);
+  const priceBreakdown = useMemo(() => {
+    if (!car || !startDate || !endDate) return null;
+    return calculateTravelPrice(car, startDate, endDate, storageEnabled, STORAGE_PRICE_PER_DAY);
+  }, [car, startDate, endDate, storageEnabled]);
 
-  const rentTotal = useMemo(() => {
-    if (!car) return 0;
-    return car.price_per_day * days;
-  }, [car, days]);
-
-  const storageTotal = useMemo(() => {
-    if (!storageEnabled) return 0;
-    return 500 * days;
-  }, [storageEnabled, days]);
-
-  const serviceFee = useMemo(() => {
-    const base = rentTotal + storageTotal;
-    return Math.round(base * 0.15);
-  }, [rentTotal, storageTotal]);
-
-  const totalPrice = useMemo(() => {
-    return rentTotal + storageTotal + serviceFee;
-  }, [rentTotal, storageTotal, serviceFee]);
+  const days = priceBreakdown?.totalRentalDays || 0;
+  const rentTotal = priceBreakdown?.totalRentalPrice || 0;
+  const storageTotal = priceBreakdown?.totalStoragePrice || 0;
+  const serviceFee = priceBreakdown?.commissionPrice || 0;
+  const totalPrice = priceBreakdown?.totalPrice || 0;
 
   const handleUseProfileCar = () => {
     if (!profileCar) return;
@@ -223,41 +139,41 @@ export function TravelBooking() {
 
     setSubmitting(true);
 
-    // Create booking in localStorage
-    const bookingData: TravelBookingData = {
-      id: generateId(),
-      user_id: user.id,
-      car_id: car.id,
-      destination,
-      start_date: startDate,
-      end_date: endDate,
-      car_brand: ownBrand,
-      car_model: ownModel,
-      car_color: ownColor,
-      car_plate: ownPlate.toUpperCase(),
-      storage_enabled: storageEnabled,
-      rent_price: rentTotal,
-      storage_price: storageTotal,
-      service_fee: serviceFee,
-      total_price: totalPrice,
-      status: 'pending',
-      partner_name: car.partner.name,
-      partner_car_brand: car.brand,
-      partner_car_model: car.model,
-      transmission: car.transmission,
-      price_per_day: car.price_per_day,
-      created_at: new Date().toISOString(),
-    };
+    try {
+      const dest = await getDestinationBySlug(destination);
+      if (!dest) {
+        setError('Направление не найдено');
+        setSubmitting(false);
+        return;
+      }
 
-    // Save to localStorage
-    const existing = JSON.parse(localStorage.getItem('priboi_travel_bookings') || '[]');
-    existing.push(bookingData);
-    localStorage.setItem('priboi_travel_bookings', JSON.stringify(existing));
+      const booking = await createTravelBooking(
+        {
+          destination_id: dest.id,
+          partner_id: car.partner_id,
+          car_id: car.id,
+          location_id: car.location_id || undefined,
+          start_date: startDate,
+          end_date: endDate,
+          has_storage: storageEnabled,
+          own_car_brand: ownBrand,
+          own_car_model: ownModel,
+          own_car_color: ownColor,
+          own_car_license_plate: ownPlate.toUpperCase(),
+        },
+        storageEnabled ? { brand: ownBrand, model: ownModel, color: ownColor, license_plate: ownPlate.toUpperCase() } : undefined,
+      );
 
-    setSubmitting(false);
-
-    // Navigate to confirmation
-    navigate(`/travel/booking/confirm?bookingId=${bookingData.id}`);
+      if (booking) {
+        navigate(`/booking/confirm?bookingId=${booking.id}`);
+      } else {
+        setError('Не удалось создать бронирование');
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Ошибка бронирования');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   if (loading) {
@@ -343,7 +259,7 @@ export function TravelBooking() {
                 </span>
               </div>
               <div className={styles.carPartner}>
-                Партнёр: {car.partner.name} ★ {car.partner.rating}
+                Партнёр: {car.partner?.name || 'Партнёр'} {car.partner?.rating ? `★ ${car.partner.rating}` : ''}
               </div>
               <div className={styles.carPrice}>
                 {car.price_per_day.toLocaleString('ru-RU')} ₽{' '}

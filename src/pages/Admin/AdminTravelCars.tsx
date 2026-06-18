@@ -5,6 +5,14 @@ import { AdminLayout } from './components/AdminLayout';
 import { TravelModal, ModalButtons } from './components/TravelModal';
 import modalStyles from './components/TravelModal.module.css';
 import styles from './AdminTravel.module.css';
+import {
+  getAllCarsAdmin,
+  getAllPartnersAdmin,
+  getAllLocationsAdmin,
+  createCar,
+  updateCar,
+  deleteCar,
+} from '../../lib/travel/api';
 import type { PartnerCar, RentalPartner, PartnerLocation } from '../../lib/travel/types';
 
 // Mock partners for partner_id select
@@ -104,8 +112,8 @@ export function AdminTravelCars() {
   const [addModalOpen, setAddModalOpen] = useState(false);
   const [formData, setFormData] = useState<CarFormData>(initialFormData);
 
-  const partners = MOCK_PARTNERS;
-  const locations = MOCK_LOCATIONS;
+  const [partners, setPartners] = useState<RentalPartner[]>([]);
+  const [locations, setLocations] = useState<PartnerLocation[]>([]);
 
   if (!hasAdminAccess) {
     return <Navigate to="/admin-login" />;
@@ -113,11 +121,12 @@ export function AdminTravelCars() {
 
   useEffect(() => {
     setLoading(true);
-    const timer = setTimeout(() => {
-      setCars(MOCK_CARS);
+    Promise.all([getAllCarsAdmin(), getAllPartnersAdmin(), getAllLocationsAdmin()]).then(([carsData, partnersData, locationsData]) => {
+      setCars(carsData);
+      setPartners(partnersData);
+      setLocations(locationsData);
       setLoading(false);
-    }, 300);
-    return () => clearTimeout(timer);
+    });
   }, []);
 
   const filteredData = useMemo(() => {
@@ -175,9 +184,8 @@ export function AdminTravelCars() {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
-  const handleAddItem = () => {
-    const newItem: PartnerCar = {
-      id: 'c' + Date.now(),
+  const handleAddItem = async () => {
+    const created = await createCar({
       partner_id: formData.partner_id,
       location_id: formData.location_id || null,
       brand: formData.brand,
@@ -191,42 +199,47 @@ export function AdminTravelCars() {
       price_per_day: formData.price_per_day,
       deposit: formData.deposit,
       image: formData.image || null,
-      images: [],
       description: formData.description || null,
       is_available: formData.is_available,
       is_active: formData.is_active,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    };
-    setCars((prev) => [newItem, ...prev]);
-    setAddModalOpen(false);
-    setFormData(initialFormData);
+    });
+    if (created) {
+      setCars((prev) => [created, ...prev]);
+      setAddModalOpen(false);
+      setFormData(initialFormData);
+    }
   };
 
-  const handleUpdateItem = () => {
+  const handleUpdateItem = async () => {
     if (!editItem) return;
+    await updateCar(editItem.id, editItem);
     setCars((prev) => prev.map((c) => (c.id === editItem.id ? editItem : c)));
     setEditItem(null);
   };
 
-  const handleToggleAvailable = (item: PartnerCar) => {
+  const handleToggleAvailable = async (item: PartnerCar) => {
+    const nextAvailable = !item.is_available;
+    await updateCar(item.id, { is_available: nextAvailable });
     setCars((prev) =>
       prev.map((c) =>
-        c.id === item.id ? { ...c, is_available: !c.is_available } : c
+        c.id === item.id ? { ...c, is_available: nextAvailable } : c
       )
     );
   };
 
-  const handleToggleActive = (item: PartnerCar) => {
+  const handleToggleActive = async (item: PartnerCar) => {
+    const nextActive = !item.is_active;
+    await updateCar(item.id, { is_active: nextActive });
     setCars((prev) =>
       prev.map((c) =>
-        c.id === item.id ? { ...c, is_active: !c.is_active } : c
+        c.id === item.id ? { ...c, is_active: nextActive } : c
       )
     );
   };
 
-  const handleDeleteItem = () => {
+  const handleDeleteItem = async () => {
     if (!deleteConfirmId) return;
+    await deleteCar(deleteConfirmId);
     setCars((prev) => prev.filter((c) => c.id !== deleteConfirmId));
     setDeleteConfirmId(null);
   };

@@ -1,0 +1,79 @@
+ПРИБОЙ v2 — ЧЕКЛИСТ ДЕПЛОЯ
+==========================
+
+Ссылки
+------
+Supabase SQL Editor:
+  https://supabase.com/dashboard/project/cuuwyvhoxdyolsqvjtgh/sql/new
+
+Supabase API keys:
+  https://supabase.com/dashboard/project/cuuwyvhoxdyolsqvjtgh/settings/api
+
+Vercel project:
+  https://vercel.com/belix32s-projects/priboy
+
+Сайт после деплоя:
+  https://priboy-six.vercel.app
+
+GitHub:
+  https://github.com/Belix32/priboy
+
+
+ШАГ 1 — Supabase (SQL Editor)
+-----------------------------
+1. Откройте SQL Editor (ссылка выше)
+2. Скопируйте ВЕСЬ файл: supabase/DEPLOY_ALL.sql
+3. Вставьте и нажмите Run
+4. Должно появиться: status = "Прибой v2 deployed OK"
+
+Supabase Auth (если ещё не включено):
+  Dashboard → Authentication → Providers → Email → включить
+
+
+ШАГ 2 — Vercel (Environment Variables)
+--------------------------------------
+Файл deploy/vercel-env.txt — скопируйте 3 переменные:
+
+  VITE_SUPABASE_URL
+  VITE_SUPABASE_ANON_KEY
+  VITE_ADMIN_EMAIL
+
+Vercel → Settings → Environment Variables → Add
+Выберите: Production + Preview + Development
+
+После добавления: Deployments → Redeploy
+
+
+ШАГ 3 — GitHub (запушить v2 код)
+---------------------------------
+Локально есть незакоммиченные изменения v2.
+Нужен push в main, чтобы Vercel собрал новую версию.
+
+  git add .
+  git commit -m "feat: Прибой v2 — Supabase, landing, booking, admin"
+  git push origin main
+
+
+ШАГ 4 — Первый вход как admin
+------------------------------
+1. Зарегистрируйтесь на сайте с email = admin@priboi.ru
+   (или измените VITE_ADMIN_EMAIL и app_settings.admin_email на свой email)
+2. Войдите — роль admin назначится автоматически (sync_admin_role)
+3. Откройте /admin
+
+
+Что будет в базе после SQL
+--------------------------
+Направления (5): Сочи, Анапа, Геленджик, Туапсе, Крым
+Партнёры (2): АвтоМоре Сочи, Южный Прокат
+Локации (5): офисы партнёров
+Авто (6): Hyundai Solaris, Toyota Camry, Lada Vesta, и др.
+
+
+Проверка
+--------
+[ ] Главная — 5 направлений
+[ ] /search — список авто
+[ ] Регистрация / вход работает
+[ ] /profile — бронирования
+[ ] /admin — панель (после входа admin)

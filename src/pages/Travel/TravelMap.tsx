@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import { getAllLocationsAdmin } from '../../lib/travel/api';
+import type { PartnerLocation } from '../../lib/travel/types';
 import styles from './TravelMap.module.css';
 
 // Fix Leaflet default icon issue
@@ -287,21 +289,40 @@ function OfficeMarker({
 
 export function TravelMap() {
   const navigate = useNavigate();
-  const [selectedLocationId, setSelectedLocationId] = useState<string | null>(
-    null,
-  );
+  const [locations, setLocations] = useState<OfficeLocation[]>([]);
+  const [selectedLocationId, setSelectedLocationId] = useState<string | null>(null);
   const [destinationFilter, setDestinationFilter] = useState('');
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [popupOpenId, setPopupOpenId] = useState<string | null>(null);
   const listRef = useRef<HTMLDivElement>(null);
 
-  // Compute filtered locations
+  useEffect(() => {
+    getAllLocationsAdmin().then((data) => {
+      setLocations(
+        data
+          .filter((loc) => loc.latitude && loc.longitude)
+          .map((loc: PartnerLocation) => ({
+            id: loc.id,
+            name: loc.name,
+            address: loc.address,
+            latitude: Number(loc.latitude),
+            longitude: Number(loc.longitude),
+            phone: loc.phone || '',
+            has_storage: loc.has_storage,
+            has_rental: loc.has_rental,
+            destination: loc.destination?.name || '',
+            partner: loc.partner?.name || '',
+          })),
+      );
+    });
+  }, []);
+
   const filteredLocations = destinationFilter
-    ? MOCK_LOCATIONS.filter((loc) => loc.destination === destinationFilter)
-    : MOCK_LOCATIONS;
+    ? locations.filter((loc) => loc.destination === destinationFilter)
+    : locations;
 
   const selectedLocation =
-    MOCK_LOCATIONS.find((loc) => loc.id === selectedLocationId) ?? null;
+    locations.find((loc) => loc.id === selectedLocationId) ?? null;
 
   // Fly-to target (when user clicks a sidebar item)
   const [flyTarget, setFlyTarget] = useState<OfficeLocation | null>(null);
@@ -309,7 +330,7 @@ export function TravelMap() {
   const handleSelectLocation = useCallback((id: string) => {
     setSelectedLocationId(id);
     setPopupOpenId(id);
-    const loc = MOCK_LOCATIONS.find((l) => l.id === id);
+    const loc = locations.find((l) => l.id === id);
     if (loc) {
       setFlyTarget(loc);
     }
@@ -472,7 +493,7 @@ export function TravelMap() {
             onFlyComplete={handleFlyComplete}
           />
 
-          {MOCK_LOCATIONS.map((loc) => (
+          {locations.map((loc) => (
             <OfficeMarker
               key={loc.id}
               location={loc}

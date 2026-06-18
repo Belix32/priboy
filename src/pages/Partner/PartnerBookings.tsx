@@ -1,4 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
+import { useAuth } from '../../contexts/AuthContext';
+import { getPartnerBookings } from '../../lib/travel/api';
 import { PartnerLayout } from './PartnerLayout';
 import styles from './Partner.module.css';
 
@@ -54,6 +56,7 @@ const PAYMENT_LABELS: Record<string, string> = {
 const ITEMS_PER_PAGE = 20;
 
 export function PartnerBookings() {
+  const { partnerId } = useAuth();
   const [bookings, setBookings] = useState<BookingItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -62,12 +65,32 @@ export function PartnerBookings() {
   const [viewItem, setViewItem] = useState<BookingItem | null>(null);
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setBookings(MOCK_BOOKINGS);
+    if (!partnerId) {
       setLoading(false);
-    }, 300);
-    return () => clearTimeout(timer);
-  }, []);
+      return;
+    }
+    getPartnerBookings(partnerId).then((data) => {
+      setBookings(
+        data.map((b) => ({
+          id: b.id,
+          client: b.user_id.slice(0, 8),
+          car_brand: b.car?.brand || '',
+          car_model: b.car?.model || '',
+          destination: b.destination?.name || '',
+          start_date: b.start_date,
+          end_date: b.end_date,
+          total_price: b.total_price,
+          status: b.status,
+          payment_status: b.payment_status === 'partially_refunded' ? 'refunded' : b.payment_status,
+          created_at: b.created_at,
+          has_storage: b.has_storage,
+          own_car: b.own_car_brand ? `${b.own_car_brand} ${b.own_car_model}` : undefined,
+          own_plate: b.own_car_license_plate || undefined,
+        })),
+      );
+      setLoading(false);
+    });
+  }, [partnerId]);
 
   const filteredData = useMemo(() => {
     return bookings.filter((b) => {

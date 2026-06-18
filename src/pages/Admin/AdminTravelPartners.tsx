@@ -6,6 +6,12 @@ import { TravelModal, ModalButtons } from './components/TravelModal';
 import modalStyles from './components/TravelModal.module.css';
 import styles from './AdminTravel.module.css';
 import type { RentalPartner } from '../../lib/travel/types';
+import {
+  getAllPartnersAdmin,
+  createPartner,
+  updatePartner,
+  deletePartner,
+} from '../../lib/travel/api';
 
 const MOCK_PARTNERS: RentalPartner[] = [
   {
@@ -98,11 +104,10 @@ export function AdminTravelPartners() {
 
   useEffect(() => {
     setLoading(true);
-    const timer = setTimeout(() => {
-      setPartners(MOCK_PARTNERS);
+    getAllPartnersAdmin().then((data) => {
+      setPartners(data);
       setLoading(false);
-    }, 300);
-    return () => clearTimeout(timer);
+    });
   }, []);
 
   const filteredData = useMemo(() => {
@@ -153,9 +158,8 @@ export function AdminTravelPartners() {
     }
   };
 
-  const handleAddItem = () => {
-    const newItem: RentalPartner = {
-      id: 'p' + Date.now(),
+  const handleAddItem = async () => {
+    const created = await createPartner({
       name: formData.name,
       slug: formData.slug,
       description: formData.description || null,
@@ -165,29 +169,32 @@ export function AdminTravelPartners() {
       website: formData.website || null,
       commission_rate: formData.commission_rate,
       is_active: formData.is_active,
-      rating: 0,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    };
-    setPartners((prev) => [newItem, ...prev]);
-    setAddModalOpen(false);
-    setFormData(initialFormData);
+    });
+    if (created) {
+      setPartners((prev) => [created, ...prev]);
+      setAddModalOpen(false);
+      setFormData(initialFormData);
+    }
   };
 
-  const handleUpdateItem = () => {
+  const handleUpdateItem = async () => {
     if (!editItem) return;
+    await updatePartner(editItem.id, editItem);
     setPartners((prev) => prev.map((p) => (p.id === editItem.id ? editItem : p)));
     setEditItem(null);
   };
 
-  const handleToggleStatus = (item: RentalPartner) => {
+  const handleToggleStatus = async (item: RentalPartner) => {
+    const nextActive = !item.is_active;
+    await updatePartner(item.id, { is_active: nextActive });
     setPartners((prev) =>
-      prev.map((p) => (p.id === item.id ? { ...p, is_active: !p.is_active } : p))
+      prev.map((p) => (p.id === item.id ? { ...p, is_active: nextActive } : p))
     );
   };
 
-  const handleDeleteItem = () => {
+  const handleDeleteItem = async () => {
     if (!deleteConfirmId) return;
+    await deletePartner(deleteConfirmId);
     setPartners((prev) => prev.filter((p) => p.id !== deleteConfirmId));
     setDeleteConfirmId(null);
   };

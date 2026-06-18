@@ -4,6 +4,7 @@
 // ============================================================================
 
 import { getSupabaseClient, isSupabaseConfigured } from '../supabase';
+import { seedDemoDataIfNeeded, STORAGE_PRICE_PER_DAY } from './seed';
 import type {
   TravelDestination,
   RentalPartner,
@@ -59,6 +60,7 @@ function generateId(): string {
  */
 export async function getActiveDestinations(): Promise<TravelDestination[]> {
   if (!isSupabaseConfigured()) {
+    seedDemoDataIfNeeded();
     const all = getLocalData<TravelDestination>(LS_DESTINATIONS);
     return all.filter((d) => d.is_active).sort((a, b) => a.sort_order - b.sort_order);
   }
@@ -170,6 +172,8 @@ export async function createDestination(
       region: data.region || null,
       latitude: data.latitude || null,
       longitude: data.longitude || null,
+      price_from: data.price_from ?? 1200,
+      hero_image: data.hero_image || null,
       is_active: data.is_active ?? true,
       sort_order: data.sort_order ?? 0,
       created_at: new Date().toISOString(),
@@ -539,6 +543,7 @@ export async function deletePartner(id: string): Promise<void> {
  */
 export async function getAvailableCars(params: TravelSearchParams): Promise<PartnerCar[]> {
   if (!isSupabaseConfigured()) {
+    seedDemoDataIfNeeded();
     let cars = getLocalData<PartnerCar>(LS_CARS).filter((c) => c.is_available && c.is_active);
 
     if (params.min_price !== undefined) {
@@ -626,19 +631,20 @@ export async function getAvailableCars(params: TravelSearchParams): Promise<Part
 
   const cars = (data as PartnerCar[]) || [];
 
-  // Filter out cars that have overlapping bookings
+  // Filter out cars with overlapping bookings (correct date overlap logic)
   const start = params.start_date;
   const end = params.end_date;
 
-  const { data: overlappingBookings } = await supabase
+  const { data: activeBookings } = await supabase
     .from('travel_bookings')
-    .select('car_id')
-    .in('status', ['pending', 'confirmed', 'active'])
-    .or(`start_date.lte.${end},end_date.gte.${start}`);
+    .select('car_id, start_date, end_date')
+    .in('status', ['pending', 'confirmed', 'active']);
 
-  if (overlappingBookings && overlappingBookings.length > 0) {
+  if (activeBookings && activeBookings.length > 0) {
     const bookedCarIds = new Set(
-      overlappingBookings.map((b: { car_id: string }) => b.car_id),
+      activeBookings
+        .filter((b: { start_date: string; end_date: string }) => b.start_date < end && b.end_date > start)
+        .map((b: { car_id: string }) => b.car_id),
     );
     return cars.filter((c) => !bookedCarIds.has(c.id));
   }
@@ -1120,13 +1126,16 @@ export async function createTravelBooking(
     form.start_date,
     form.end_date,
     form.has_storage,
+    STORAGE_PRICE_PER_DAY,
   );
+
+  const storagePricePerDay = form.has_storage ? STORAGE_PRICE_PER_DAY : 0;
 
   if (!isSupabaseConfigured()) {
     const all = getLocalData<TravelBooking>(LS_BOOKINGS);
     const newBooking: TravelBooking = {
       id: generateId(),
-      user_id: 'local-user',
+      user_id: (await getLocalUserId()) || 'local-user',
       destination_id: form.destination_id,
       partner_id: form.partner_id,
       car_id: form.car_id,
@@ -1137,7 +1146,7 @@ export async function createTravelBooking(
       total_rental_days: price.totalRentalDays,
       total_rental_price: price.totalRentalPrice,
       has_storage: form.has_storage,
-      storage_price_per_day: car.deposit,
+      storage_price_per_day: storagePricePerDay,
       total_storage_days: price.totalStorageDays,
       total_storage_price: price.totalStoragePrice,
       own_car_brand: userCarInfo?.brand || form.own_car_brand || null,
@@ -1156,6 +1165,21 @@ export async function createTravelBooking(
     };
     all.push(newBooking);
     setLocalData(LS_BOOKINGS, all);
+
+    if (form.has_storage && newBooking.own_car_license_plate) {
+      await createStorageRecord({
+        travel_booking_id: newBooking.id,
+        partner_id: form.partner_id,
+        location_id: form.location_id || null,
+        car_brand: newBooking.own_car_brand || '',
+        car_model: newBooking.own_car_model || '',
+        car_color: newBooking.own_car_color,
+        car_license_plate: newBooking.own_car_license_plate || '',
+        check_in_date: form.start_date,
+        check_out_date: form.end_date,
+      });
+    }
+
     return newBooking;
   }
 
@@ -1172,7 +1196,7 @@ export async function createTravelBooking(
     total_rental_days: price.totalRentalDays,
     total_rental_price: price.totalRentalPrice,
     has_storage: form.has_storage,
-    storage_price_per_day: car.deposit,
+    storage_price_per_day: storagePricePerDay,
     total_storage_days: price.totalStorageDays,
     total_storage_price: price.totalStoragePrice,
     own_car_brand: userCarInfo?.brand || form.own_car_brand || null,
@@ -1204,7 +1228,23 @@ export async function createTravelBooking(
         throw new Error(error.message);
       }
 
-      return result as TravelBooking;
+      const booking = result as TravelBooking;
+
+      if (form.has_storage && booking.own_car_license_plate) {
+        await createStorageRecord({
+          travel_booking_id: booking.id,
+          partner_id: form.partner_id,
+          location_id: form.location_id || null,
+          car_brand: booking.own_car_brand || '',
+          car_model: booking.own_car_model || '',
+          car_color: booking.own_car_color,
+          car_license_plate: booking.own_car_license_plate || '',
+          check_in_date: form.start_date,
+          check_out_date: form.end_date,
+        });
+      }
+
+      return booking;
     } catch (err: any) {
       if (err?.message?.includes('Lock') || err?.message?.includes('claim')) continue;
       throw err;
@@ -1217,7 +1257,22 @@ export async function createTravelBooking(
 /**
  * Get the current user ID from Supabase auth session
  */
+async function getLocalUserId(): Promise<string | null> {
+  try {
+    const stored = localStorage.getItem('priboi_user');
+    const token = localStorage.getItem('priboi_token');
+    if (!stored || !token) return null;
+    const data = JSON.parse(atob(stored));
+    return data.id || null;
+  } catch {
+    return null;
+  }
+}
+
 async function getCurrentUserId(): Promise<string | null> {
+  if (!isSupabaseConfigured()) {
+    return getLocalUserId();
+  }
   try {
     const supabase = getSupabaseClient();
     const { data } = await supabase.auth.getSession();
@@ -1230,13 +1285,16 @@ async function getCurrentUserId(): Promise<string | null> {
 /**
  * Get all bookings for the current user
  */
-export async function getUserTravelBookings(): Promise<TravelBooking[]> {
+export async function getUserTravelBookings(userId?: string): Promise<TravelBooking[]> {
   if (!isSupabaseConfigured()) {
-    return getLocalData<TravelBooking>(LS_BOOKINGS);
+    seedDemoDataIfNeeded();
+    const all = getLocalData<TravelBooking>(LS_BOOKINGS);
+    if (userId) return all.filter((b) => b.user_id === userId);
+    return all;
   }
 
-  const userId = await getCurrentUserId();
-  if (!userId) return [];
+  const currentUserId = userId || (await getCurrentUserId());
+  if (!currentUserId) return [];
 
   const supabase = getSupabaseClient();
   const { data, error } = await supabase
@@ -1244,7 +1302,7 @@ export async function getUserTravelBookings(): Promise<TravelBooking[]> {
     .select(
       '*, destination:travel_destinations(*), partner:rental_partners(*), car:partner_cars(*), location:partner_locations(*)',
     )
-    .eq('user_id', userId)
+    .eq('user_id', currentUserId)
     .order('created_at', { ascending: false });
 
   if (error) {

@@ -1,0 +1,7 @@
+# Vercel → Project Settings → Environment Variables
+# Добавьте все 3 переменные для Production, Preview и Development
+# Значения возьмите из Supabase Dashboard → Settings → API
+
+VITE_SUPABASE_URL=https://YOUR_PROJECT.supabase.co
+VITE_SUPABASE_ANON_KEY=your-anon-or-publishable-key
+VITE_ADMIN_EMAIL=admin@priboi.ru

@@ -1,4 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
+import { useAuth } from '../../contexts/AuthContext';
+import { getPartnerStorageRecords } from '../../lib/travel/api';
 import { PartnerLayout } from './PartnerLayout';
 import styles from './Partner.module.css';
 
@@ -40,6 +42,7 @@ const STATUS_LABELS: Record<string, string> = {
 const ITEMS_PER_PAGE = 20;
 
 export function PartnerStorage() {
+  const { partnerId } = useAuth();
   const [storage, setStorage] = useState<StorageItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -48,12 +51,28 @@ export function PartnerStorage() {
   const [viewItem, setViewItem] = useState<StorageItem | null>(null);
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setStorage(MOCK_STORAGE);
+    if (!partnerId) {
       setLoading(false);
-    }, 300);
-    return () => clearTimeout(timer);
-  }, []);
+      return;
+    }
+    getPartnerStorageRecords(partnerId).then((data) => {
+      setStorage(
+        data.map((s) => ({
+          id: s.id,
+          booking_id: s.travel_booking_id,
+          car_brand: s.car_brand,
+          car_model: s.car_model,
+          car_color: s.car_color || '',
+          car_license_plate: s.car_license_plate,
+          check_in_date: s.check_in_date,
+          check_out_date: s.check_out_date,
+          status: s.status,
+          partner_name: '',
+        })),
+      );
+      setLoading(false);
+    });
+  }, [partnerId]);
 
   const filteredData = useMemo(() => {
     return storage.filter((s) => {
