@@ -64,17 +64,13 @@ export function Register() {
     const result = await register(name.trim(), email.trim().toLowerCase(), phone.trim(), password);
     setLoading(false);
     if (result.success) {
-      const role = user?.role || 'user';
-      switch (role) {
-        case 'admin':
-        case 'moderator':
-          navigate('/admin');
-          break;
-        case 'partner':
-          navigate('/partner');
-          break;
-        default:
-          navigate('/');
+      const role = result.role || 'user';
+      if (role === 'admin' || role === 'moderator') {
+        navigate('/admin');
+      } else if (role === 'partner') {
+        navigate('/partner');
+      } else {
+        navigate('/profile');
       }
     } else {
       setServerError(result.error || 'Ошибка регистрации');
@@ -83,16 +79,12 @@ export function Register() {
 
   if (isAuthenticated) {
     const role = user?.role || 'user';
-    switch (role) {
-      case 'admin':
-      case 'moderator':
-        navigate('/admin');
-        break;
-      case 'partner':
-        navigate('/partner');
-        break;
-      default:
-        navigate('/');
+    if (role === 'admin' || role === 'moderator') {
+      navigate('/admin');
+    } else if (role === 'partner') {
+      navigate('/partner');
+    } else {
+      navigate('/profile');
     }
     return null;
   }

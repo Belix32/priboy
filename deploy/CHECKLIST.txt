@@ -26,8 +26,8 @@ GitHub:
 3. Вставьте и нажмите Run
 4. Должно появиться: status = "Прибой v2 deployed OK"
 
-Supabase Auth (если ещё не включено):
-  Dashboard → Authentication → Providers → Email → включить
+-- Supabase Auth: Authentication → Providers → Email → disable "Confirm email"
+-- so users are logged in immediately after registration.
 
 
 ШАГ 2 — Vercel (Environment Variables)

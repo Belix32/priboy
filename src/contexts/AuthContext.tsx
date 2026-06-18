@@ -22,7 +22,7 @@ interface AuthContextType {
   partnerId: string | null;
   hasAdminAccess: boolean;
   login: (email: string, password: string) => Promise<{ success: boolean; error?: string; role?: string }>;
-  register: (name: string, email: string, phone: string, password: string) => Promise<{ success: boolean; error?: string }>;
+  register: (name: string, email: string, phone: string, password: string) => Promise<{ success: boolean; error?: string; role?: string }>;
   logout: () => Promise<void>;
   refreshProfile: () => Promise<void>;
 }
@@ -40,7 +40,15 @@ function generateSecureToken(): string {
 
 function saveUserSession(user: User): void {
   const token = generateSecureToken();
-  const data = { id: user.id, email: user.email, role: user.role || 'user', partnerId: user.partnerId, token };
+  const data = {
+    id: user.id,
+    email: user.email,
+    name: user.name,
+    phone: user.phone,
+    role: user.role || 'user',
+    partnerId: user.partnerId,
+    token,
+  };
   localStorage.setItem(AUTH_TOKEN_KEY, token);
   localStorage.setItem(USER_KEY, btoa(JSON.stringify(data)));
 }
@@ -235,7 +243,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const register = async (name: string, email: string, phone: string, password: string): Promise<{ success: boolean; error?: string }> => {
+  const register = async (
+    name: string,
+    email: string,
+    phone: string,
+    password: string,
+  ): Promise<{ success: boolean; error?: string; role?: string }> => {
     if (!name || name.trim().length < 2) {
       return { success: false, error: 'Имя должно быть не менее 2 символов' };
     }
@@ -243,41 +256,78 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return { success: false, error: 'Пароль должен быть не менее 8 символов' };
     }
 
+    const normalizedEmail = email.toLowerCase().trim();
+    const trimmedName = name.trim();
+    const trimmedPhone = phone.trim();
+
     if (!isSupabaseConfigured()) {
       const mockUser: User = {
         id: generateSecureToken().substring(0, 16),
-        name: name.trim(),
-        email: email.toLowerCase().trim(),
-        phone: phone.trim(),
-        role: isAdminEmail(email) ? 'admin' : 'user',
+        name: trimmedName,
+        email: normalizedEmail,
+        phone: trimmedPhone,
+        role: isAdminEmail(normalizedEmail) ? 'admin' : 'user',
       };
       setUser(mockUser);
       saveUserSession(mockUser);
-      return { success: true };
+      return { success: true, role: mockUser.role };
     }
 
     try {
       const supabase = getSupabaseClient();
       const { data, error } = await supabase.auth.signUp({
-        email: email.toLowerCase().trim(),
+        email: normalizedEmail,
         password,
-        options: { data: { name: name.trim(), phone: phone.trim() } },
+        options: { data: { name: trimmedName, phone: trimmedPhone } },
       });
 
       if (error) {
-        if (error.message.includes('User already registered')) {
+        if (error.message.includes('User already registered') || error.message.includes('already been registered')) {
           return { success: false, error: 'Пользователь с таким email уже существует' };
         }
         return { success: false, error: 'Ошибка регистрации. Попробуйте позже.' };
       }
 
-      if (data?.user && data.session) {
-        const userObj = await loadUserFromSession(data.user.email || email, data.user.id);
-        setUser({ ...userObj, name: name.trim(), phone: phone.trim() });
-        saveUserSession({ ...userObj, name: name.trim(), phone: phone.trim() });
+      let authUser = data.user;
+      let session = data.session;
+
+      // Supabase often returns user without session — sign in immediately
+      if (!session && authUser) {
+        const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+          email: normalizedEmail,
+          password,
+        });
+
+        if (signInError) {
+          if (signInError.message.toLowerCase().includes('email not confirmed')) {
+            return {
+              success: false,
+              error: 'Подтвердите email по ссылке из письма, затем войдите',
+            };
+          }
+          return { success: false, error: 'Аккаунт создан, но не удалось войти. Попробуйте войти вручную.' };
+        }
+
+        authUser = signInData.user;
+        session = signInData.session;
       }
 
-      return { success: true };
+      if (!authUser) {
+        return { success: false, error: 'Ошибка регистрации' };
+      }
+
+      // Ensure profile has name/phone (trigger may have created it already)
+      await supabase
+        .from('profiles')
+        .update({ name: trimmedName, phone: trimmedPhone })
+        .eq('auth_id', authUser.id);
+
+      const userObj = await loadUserFromSession(authUser.email || normalizedEmail, authUser.id);
+      const fullUser: User = { ...userObj, name: trimmedName, phone: trimmedPhone };
+      setUser(fullUser);
+      saveUserSession(fullUser);
+
+      return { success: true, role: fullUser.role };
     } catch {
       return { success: false, error: 'Ошибка сети. Проверьте подключение.' };
     }
