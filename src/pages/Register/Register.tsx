@@ -150,7 +150,7 @@ export function Register() {
 
         <div className={styles.card}>
           <div className={styles.brand}>
-            <Logo size={48} showText={false} />
+            <Logo variant="large" align="center" />
           </div>
           <h1 className={styles.title}>Создать аккаунт</h1>
           <p className={styles.subtitle}>Заполните форму для регистрации</p>

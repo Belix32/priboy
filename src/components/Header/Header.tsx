@@ -93,7 +93,7 @@ export function Header() {
     <header className={headerClassName}>
       <div className={styles.container}>
         <Link to="/" className={styles.logo} aria-label="Прибой — на главную">
-          <Logo size={38} variant={isHeroHeader ? 'hero' : 'default'} />
+          <Logo variant={isHeroHeader ? 'hero' : 'default'} />
         </Link>
 
         <nav

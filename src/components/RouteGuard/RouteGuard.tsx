@@ -1,5 +1,6 @@
 import { ReactNode } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
+import { PageLoader } from '../PageLoader/PageLoader';
 import { useAuth } from '../../contexts/AuthContext';
 
 interface RouteGuardProps {
@@ -14,11 +15,7 @@ export function RouteGuard({ children, requireAdmin, requirePartner, requireAuth
   const location = useLocation();
 
   if (isLoading) {
-    return (
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh' }}>
-        <p style={{ color: 'var(--text-secondary)' }}>Загрузка...</p>
-      </div>
-    );
+    return <PageLoader message="Проверяем доступ" />;
   }
 
   if (requireAuth && !isAuthenticated) {

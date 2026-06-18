@@ -1,29 +1,107 @@
-.logo {
+.brand {
   display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 5px;
+  line-height: 1;
+}
+
+.center {
   align-items: center;
-  gap: 10px;
 }
 
-.mark {
+.title {
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: -0.05em;
+  background: linear-gradient(120deg, var(--text-primary) 0%, var(--accent) 55%, #0ea5e9 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  text-shadow: none;
+}
+
+.waveLine {
   display: block;
-  flex-shrink: 0;
-  object-fit: contain;
-  /* Black canvas in PNG becomes transparent; colors stay visible */
-  mix-blend-mode: screen;
+  width: 100%;
+  height: 3px;
+  border-radius: var(--radius-full);
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    var(--accent-light) 20%,
+    var(--accent) 50%,
+    var(--accent-light) 80%,
+    transparent 100%
+  );
+  overflow: hidden;
+  position: relative;
 }
 
-.markHero {
-  filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.25));
+.waveShimmer {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.65) 50%,
+    transparent 100%
+  );
+  animation: brandShimmer 2.8s ease-in-out infinite;
 }
 
-.text {
-  font-size: 19px;
-  font-weight: 700;
-  letter-spacing: -0.03em;
-  color: var(--text-primary);
+/* Hero — on dark photo background */
+.hero .title {
+  background: linear-gradient(120deg, #ffffff 0%, #bfdbfe 45%, #7dd3fc 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
 }
 
-:global(.headerHero) .text,
-.textHero {
-  color: #ffffff;
+.hero .waveLine {
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.25) 30%,
+    rgba(255, 255, 255, 0.7) 50%,
+    rgba(255, 255, 255, 0.25) 70%,
+    transparent 100%
+  );
+}
+
+/* Large — login / register */
+.large .title {
+  font-size: 32px;
+  letter-spacing: -0.06em;
+}
+
+.large .waveLine {
+  width: 72px;
+  height: 4px;
+}
+
+.default .waveLine {
+  width: 52px;
+}
+
+.hero .waveLine {
+  width: 52px;
+}
+
+@keyframes brandShimmer {
+  0% {
+    transform: translateX(-120%);
+  }
+  100% {
+    transform: translateX(120%);
+  }
+}
+
+@media (max-width: 480px) {
+  .title {
+    font-size: 20px;
+  }
+
+  .large .title {
+    font-size: 28px;
+  }
 }

@@ -1,0 +1,165 @@
+.loader {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 60vh;
+  padding: var(--spacing-2xl) var(--container-padding);
+  background: var(--bg-primary);
+  overflow: hidden;
+}
+
+.fullScreen {
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+.content {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  max-width: 360px;
+}
+
+.waves {
+  position: absolute;
+  bottom: calc(100% + 24px);
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(420px, 90vw);
+  height: 80px;
+  opacity: 0.55;
+  pointer-events: none;
+}
+
+.waveSvg {
+  width: 100%;
+  height: 100%;
+}
+
+.wave1 {
+  fill: var(--accent-light);
+  animation: waveDrift1 4s ease-in-out infinite;
+}
+
+.wave2 {
+  fill: color-mix(in srgb, var(--accent) 35%, transparent);
+  animation: waveDrift2 5s ease-in-out infinite;
+}
+
+.wave3 {
+  fill: color-mix(in srgb, var(--accent) 55%, transparent);
+  animation: waveDrift3 3.5s ease-in-out infinite;
+}
+
+.brandBlock {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-md);
+  animation: fadeUp 0.6s ease-out both;
+}
+
+.brand {
+  animation: fadeUp 0.5s ease-out both;
+}
+
+.tagline {
+  margin: 0;
+  font-size: var(--font-size-small);
+  color: var(--text-secondary);
+  text-align: center;
+  letter-spacing: 0.02em;
+  animation: fadeUp 0.6s ease-out 0.15s both;
+}
+
+.dots {
+  display: flex;
+  gap: 8px;
+  margin-top: var(--spacing-sm);
+  animation: fadeUp 0.6s ease-out 0.3s both;
+}
+
+.dot {
+  width: 7px;
+  height: 7px;
+  border-radius: var(--radius-full);
+  background: var(--accent);
+  animation: dotPulse 1.4s ease-in-out infinite;
+}
+
+.dot:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.dot:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+@keyframes waveDrift1 {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  50% {
+    transform: translateX(-18px);
+  }
+}
+
+@keyframes waveDrift2 {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  50% {
+    transform: translateX(14px);
+  }
+}
+
+@keyframes waveDrift3 {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  50% {
+    transform: translateX(-10px);
+  }
+}
+
+@keyframes fadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes dotPulse {
+  0%,
+  80%,
+  100% {
+    opacity: 0.25;
+    transform: scale(0.85);
+  }
+  40% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wave1,
+  .wave2,
+  .wave3,
+  .dot,
+  .brandBlock,
+  .brand,
+  .tagline,
+  .dots {
+    animation: none;
+  }
+}

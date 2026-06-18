@@ -1,7 +1,9 @@
 import { Routes, Route, useLocation } from 'react-router-dom';
 import { lazy, Suspense } from 'react';
 import { Header } from './components/Header/Header';
+import { PageLoader } from './components/PageLoader/PageLoader';
 import { RouteGuard } from './components/RouteGuard/RouteGuard';
+import { useAuth } from './contexts/AuthContext';
 
 const Login = lazy(() => import('./pages/Login/Login').then(m => ({ default: m.Login })));
 const Register = lazy(() => import('./pages/Register/Register').then(m => ({ default: m.Register })));
@@ -28,20 +30,6 @@ const PartnerCars = lazy(() => import('./pages/Partner/PartnerCars').then(m => (
 const PartnerBookings = lazy(() => import('./pages/Partner/PartnerBookings').then(m => ({ default: m.PartnerBookings })));
 const PartnerStorage = lazy(() => import('./pages/Partner/PartnerStorage').then(m => ({ default: m.PartnerStorage })));
 
-function PageLoader() {
-  return (
-    <div style={{
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      minHeight: '60vh',
-      color: 'var(--text-secondary)',
-    }}>
-      Прибой загружается...
-    </div>
-  );
-}
-
 function ProtectedAdmin({ children }: { children: React.ReactNode }) {
   return <RouteGuard requireAdmin>{children}</RouteGuard>;
 }
@@ -56,7 +44,12 @@ function ProtectedAuth({ children }: { children: React.ReactNode }) {
 
 export default function App() {
   const location = useLocation();
+  const { isLoading } = useAuth();
   const showHeader = !location.pathname.startsWith('/admin') && !location.pathname.startsWith('/partner');
+
+  if (isLoading) {
+    return <PageLoader fullScreen message="Подготавливаем ваш кабинет" />;
+  }
 
   return (
     <>

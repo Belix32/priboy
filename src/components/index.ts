@@ -8,3 +8,5 @@ export { StepCard } from './StepCard/StepCard';
 export { DestinationCard } from './DestinationCard/DestinationCard';
 export { FeatureItem } from './FeatureItem/FeatureItem';
 export { Logo } from './Logo/Logo';
+export { PageLoader } from './PageLoader/PageLoader';
+export { RouteGuard } from './RouteGuard/RouteGuard';

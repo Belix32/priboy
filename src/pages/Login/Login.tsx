@@ -111,7 +111,7 @@ export function Login() {
 
         <div className={styles.card}>
           <div className={styles.brand}>
-            <Logo size={48} showText={false} />
+            <Logo variant="large" align="center" />
           </div>
           <h1 className={styles.title}>Вход в аккаунт</h1>
           <p className={styles.subtitle}>Войдите, чтобы управлять бронированиями</p>

@@ -8,7 +8,7 @@ export function Footer() {
       <div className={styles.container}>
         <div className={styles.grid}>
           <div className={styles.brand}>
-            <Logo size={40} className={styles.logoWrap} />
+            <Logo variant="default" />
             <p className={styles.tagline}>
               Парковка и аренда авто на юге России. Оставьте свой автомобиль в надёжном месте и наслаждайтесь поездкой.
             </p>
