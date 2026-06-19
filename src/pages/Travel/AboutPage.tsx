@@ -48,7 +48,7 @@ export function AboutPage() {
           </div>
           <div className={infoStyles.ctaRow}>
             <Button variant="primary" onClick={() => navigate('/guide')}>
-              Подробное руководство
+              Как пользоваться сервисом
             </Button>
           </div>
         </section>

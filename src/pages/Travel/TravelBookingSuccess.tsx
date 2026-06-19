@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { Button } from '../../components/Button/Button';
+import { useAuth } from '../../contexts/AuthContext';
 import { getTravelBookingById } from '../../lib/travel/api';
+import { buildBookingQrPayload, getBookingQrCodeUrl } from '../../lib/travel/qrCode';
 import type { TravelBooking } from '../../lib/travel/types';
 import styles from './TravelBookingSuccess.module.css';
 import sharedStyles from './Travel.module.css';
@@ -13,6 +15,7 @@ function formatDate(dateStr: string): string {
 export function TravelBookingSuccess() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const bookingId = searchParams.get('id');
 
   const [booking, setBooking] = useState<TravelBooking | null>(null);
@@ -29,15 +32,23 @@ export function TravelBookingSuccess() {
     getTravelBookingById(bookingId).then((found) => {
       if (found) {
         setBooking(found);
-        const destSlug = found.destination?.slug || '';
-        const qrData = encodeURIComponent(`PRIBOI:TRAVEL:${found.id}:${found.car_id}:${destSlug}`);
-        setQrCodeUrl(`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${qrData}&bgcolor=ffffff&color=000000`);
       } else {
         setError('Бронирование не найдено');
       }
       setLoading(false);
     });
   }, [bookingId]);
+
+  useEffect(() => {
+    if (!booking) return;
+
+    const qrData = buildBookingQrPayload(booking, {
+      name: user?.name || '',
+      phone: user?.phone || '',
+      email: user?.email,
+    });
+    setQrCodeUrl(getBookingQrCodeUrl(qrData));
+  }, [booking, user]);
 
   if (loading) {
     return (
@@ -78,6 +89,15 @@ export function TravelBookingSuccess() {
         <div className={styles.details}>
           <p><strong>{carName}</strong></p>
           <p>{booking.destination?.name} · {formatDate(booking.start_date)} — {formatDate(booking.end_date)}</p>
+          {user?.name && <p>Клиент: {user.name}{user.phone ? ` · ${user.phone}` : ''}</p>}
+          {booking.has_storage && booking.own_car_license_plate ? (
+            <p className={styles.storageInfo}>
+              Парковка: {booking.own_car_brand} {booking.own_car_model}
+              {booking.own_car_color ? `, ${booking.own_car_color}` : ''} ({booking.own_car_license_plate})
+            </p>
+          ) : (
+            <p className={styles.storageInfo}>Парковка не требуется</p>
+          )}
           <p className={styles.total}>Итого: {booking.total_price.toLocaleString('ru-RU')} ₽</p>
         </div>
 

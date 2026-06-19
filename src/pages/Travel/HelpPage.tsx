@@ -213,7 +213,7 @@ export function HelpPage() {
               <ul className={styles.quickLinks}>
                 <li><Link to="/search?mode=rental">Забронировать аренду</Link></li>
                 <li><Link to="/search?mode=storage">Забронировать парковку</Link></li>
-                <li><Link to="/guide">Как работает система</Link></li>
+                <li><Link to="/guide">Как это работает</Link></li>
                 <li><Link to="/about">О сервисе</Link></li>
                 <li><Link to="/profile">Личный кабинет</Link></li>
               </ul>

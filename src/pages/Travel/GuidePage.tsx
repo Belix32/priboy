@@ -47,7 +47,7 @@ export function GuidePage() {
     <div className={infoStyles.page}>
       <section className={infoStyles.hero}>
         <div className={infoStyles.heroInner}>
-          <span className={infoStyles.overline}>Руководство</span>
+          <span className={infoStyles.overline}>Для клиентов</span>
           <h1 className={infoStyles.heroTitle}>{SYSTEM_GUIDE.title}</h1>
           <p className={infoStyles.heroSubtitle}>{SYSTEM_GUIDE.subtitle}</p>
         </div>
@@ -215,63 +215,6 @@ export function GuidePage() {
                 <Button variant="primary" onClick={() => navigate('/profile')}>Открыть кабинет</Button>
                 <Button variant="secondary" onClick={() => navigate('/my-trips')}>Мои поездки</Button>
               </div>
-            </section>
-
-            {/* Partners & roles */}
-            <section id="partners" className={`${infoStyles.card} ${styles.section}`}>
-              <div className={styles.sectionHeader}>
-                <span className={styles.sectionIcon} aria-hidden="true">🏢</span>
-                <h2 className={styles.sectionTitle}>Роли в системе</h2>
-              </div>
-              <div className={styles.rolesGrid}>
-                {SYSTEM_GUIDE.roles.map((role) => (
-                  <article key={role.title} className={styles.roleCard}>
-                    <h3 className={styles.roleTitle}>{role.title}</h3>
-                    <p className={styles.roleSubtitle}>{role.subtitle}</p>
-                    <p className={styles.roleDesc}>{role.description}</p>
-                    <ul className={styles.roleFeatures}>
-                      {role.features.map((f) => (
-                        <li key={f}>{f}</li>
-                      ))}
-                    </ul>
-                    {role.link && (
-                      <Button variant="secondary" size="small" onClick={() => navigate(role.link!.to)}>
-                        {role.link.label}
-                      </Button>
-                    )}
-                  </article>
-                ))}
-              </div>
-            </section>
-
-            {/* Admin */}
-            <section id="admin" className={`${infoStyles.card} ${styles.section}`}>
-              <div className={styles.sectionHeader}>
-                <span className={styles.sectionIcon} aria-hidden="true">⚙️</span>
-                <h2 className={styles.sectionTitle}>{SYSTEM_GUIDE.admin.title}</h2>
-              </div>
-              <p className={styles.paragraph}>{SYSTEM_GUIDE.admin.intro}</p>
-              <div className={styles.adminList}>
-                {SYSTEM_GUIDE.admin.sections.map((s) => (
-                  <div key={s.name} className={styles.adminItem}>
-                    <div className={styles.adminItemName}>{s.name}</div>
-                    <p className={styles.adminItemText}>{s.text}</p>
-                  </div>
-                ))}
-              </div>
-            </section>
-
-            {/* Security */}
-            <section id="security" className={`${infoStyles.card} ${styles.section}`}>
-              <div className={styles.sectionHeader}>
-                <span className={styles.sectionIcon} aria-hidden="true">🛡️</span>
-                <h2 className={styles.sectionTitle}>{SYSTEM_GUIDE.security.title}</h2>
-              </div>
-              <ul className={styles.securityList}>
-                {SYSTEM_GUIDE.security.points.map((p) => (
-                  <li key={p}>{p}</li>
-                ))}
-              </ul>
             </section>
 
             <div className={styles.ctaBanner}>

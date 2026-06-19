@@ -62,7 +62,7 @@ function saveOwnCar(car: OwnCarInfo): void {
 export function UserProfile() {
   const { user, hasAdminAccess } = useAuth();
   const navigate = useNavigate();
-  const { bookings, loading, refresh } = useBookings();
+  const { bookings, loading, error, refresh } = useBookings();
   const [activeTab, setActiveTab] = useState<'active' | 'history'>('active');
   const [cancellingId, setCancellingId] = useState<string | null>(null);
 
@@ -395,6 +395,12 @@ export function UserProfile() {
               <div className={styles.loading}>
                 <div className={styles.spinner} />
                 <p>Загрузка поездок...</p>
+              </div>
+            ) : error ? (
+              <div className={styles.emptyState}>
+                <h2 className={styles.emptyTitle}>Не удалось загрузить поездки</h2>
+                <p className={styles.emptyText}>{error}</p>
+                <Button variant="primary" onClick={() => refresh()}>Повторить</Button>
               </div>
             ) : displayTrips.length > 0 ? (
               displayTrips.map(renderTrip)

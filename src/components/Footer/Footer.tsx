@@ -29,7 +29,7 @@ export function Footer() {
             <ul>
               <li><Link to="/about">О нас</Link></li>
               <li><Link to="/help">Помощь</Link></li>
-              <li><Link to="/guide">Как работает система</Link></li>
+              <li><Link to="/guide">Как это работает</Link></li>
               <li><Link to="/login">Войти</Link></li>
             </ul>
           </div>

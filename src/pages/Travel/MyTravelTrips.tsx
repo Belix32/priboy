@@ -34,7 +34,7 @@ function getStatusClass(status: string): string {
 
 export function MyTravelTrips() {
   const navigate = useNavigate();
-  const { bookings, loading, refresh } = useBookings();
+  const { bookings, loading, error, refresh } = useBookings();
   const [activeTab, setActiveTab] = useState<'active' | 'history'>('active');
   const [cancellingId, setCancellingId] = useState<string | null>(null);
 
@@ -102,6 +102,11 @@ export function MyTravelTrips() {
 
         {loading ? (
           <p className={styles.loading}>Загрузка...</p>
+        ) : error ? (
+          <div className={styles.empty}>
+            <p>{error}</p>
+            <Button variant="primary" onClick={() => refresh()}>Повторить</Button>
+          </div>
         ) : displayed.length === 0 ? (
           <div className={styles.empty}>
             <p>Нет поездок</p>

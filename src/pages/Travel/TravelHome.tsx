@@ -96,7 +96,7 @@ export function TravelHome() {
           </div>
           <div className={styles.guideLinkWrap}>
             <Button variant="secondary" onClick={() => navigate('/guide')}>
-              Подробное руководство по системе →
+              Подробнее о сервисе →
             </Button>
           </div>
         </div>

@@ -1289,31 +1289,34 @@ async function getCurrentUserId(): Promise<string | null> {
 }
 
 /**
- * Get all bookings for the current user
+ * Get all bookings for the current authenticated user.
+ * Relies on Supabase RLS (auth.uid() = user_id) instead of a client-side user id filter.
  */
 export async function getUserTravelBookings(userId?: string): Promise<TravelBooking[]> {
   if (!isSupabaseConfigured()) {
     seedDemoDataIfNeeded();
     const all = getLocalData<TravelBooking>(LS_BOOKINGS);
-    if (userId) return all.filter((b) => b.user_id === userId);
+    const localId = userId || (await getLocalUserId());
+    if (localId) return all.filter((b) => b.user_id === localId);
     return all;
   }
 
-  const currentUserId = userId || (await getCurrentUserId());
-  if (!currentUserId) return [];
-
   const supabase = getSupabaseClient();
+  const { data: sessionData } = await supabase.auth.getSession();
+  if (!sessionData?.session?.user) {
+    return [];
+  }
+
   const { data, error } = await supabase
     .from('travel_bookings')
     .select(
       '*, destination:travel_destinations(*), partner:rental_partners(*), car:partner_cars(*), location:partner_locations(*)',
     )
-    .eq('user_id', currentUserId)
     .order('created_at', { ascending: false });
 
   if (error) {
     console.error('Error fetching user travel bookings:', error);
-    return [];
+    throw new Error(error.message);
   }
 
   return (data as TravelBooking[]) || [];
