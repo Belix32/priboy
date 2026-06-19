@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import { getPartnerBookings, updateTravelBookingStatus } from '../../lib/travel/api';
+import { getPartnerBookings, updateTravelBookingStatus, updateTravelBookingPaymentStatus } from '../../lib/travel/api';
 import { getErrorMessage } from '../../lib/apiError';
 import { PartnerLayout } from './PartnerLayout';
 import styles from './Partner.module.css';
@@ -193,6 +193,36 @@ export function PartnerBookings() {
     }
   };
 
+  const handleMarkPaid = async (id: string) => {
+    const booking = bookings.find((b) => b.id === id);
+    if (!booking || booking.payment_status === 'paid') return;
+    if (!confirm(`Отметить бронирование ${id.slice(0, 8)}… как оплаченное (${formatCurrency(booking.total_price)})?`)) {
+      return;
+    }
+
+    setUpdatingId(id);
+    setStatusError(null);
+    try {
+      await updateTravelBookingPaymentStatus(id, 'paid');
+      if (booking.status === 'pending') {
+        await updateTravelBookingStatus(id, 'confirmed');
+      }
+      await loadBookings();
+      setViewItem((prev) => {
+        if (prev?.id !== id) return prev;
+        return {
+          ...prev,
+          payment_status: 'paid',
+          status: prev.status === 'pending' ? 'confirmed' : prev.status,
+        };
+      });
+    } catch (err) {
+      setStatusError(getErrorMessage(err, 'Не удалось отметить оплату'));
+    } finally {
+      setUpdatingId(null);
+    }
+  };
+
   if (loading) {
     return (
       <PartnerLayout title="Бронирования">
@@ -301,6 +331,7 @@ export function PartnerBookings() {
                     <th>Даты</th>
                     <th>Сумма</th>
                     <th>Статус</th>
+                    <th>Оплата</th>
                     <th>Действия</th>
                   </tr>
                 </thead>
@@ -340,6 +371,13 @@ export function PartnerBookings() {
                         </span>
                       </td>
                       <td>
+                        <span
+                          className={`${styles.badge} ${getPaymentClass(booking.payment_status)}`}
+                        >
+                          {PAYMENT_LABELS[booking.payment_status] || booking.payment_status}
+                        </span>
+                      </td>
+                      <td>
                         <div className={styles.actionsCell}>
                           <button
                             className={styles.actionBtn}
@@ -348,6 +386,15 @@ export function PartnerBookings() {
                           >
                             Детали
                           </button>
+                          {booking.payment_status === 'pending' && booking.status !== 'cancelled' && (
+                            <button
+                              className={`${styles.actionBtn} ${styles.actionBtnSuccess}`}
+                              onClick={() => handleMarkPaid(booking.id)}
+                              disabled={updatingId === booking.id}
+                            >
+                              {updatingId === booking.id ? '…' : 'Оплачено'}
+                            </button>
+                          )}
                           {booking.status === 'pending' && (
                             <>
                               <button
@@ -513,6 +560,15 @@ export function PartnerBookings() {
                 </div>
               </div>
               <div className={styles.modalFooter}>
+                {viewItem.payment_status === 'pending' && viewItem.status !== 'cancelled' && (
+                  <button
+                    className={`${styles.modalBtn} ${styles.modalBtnPrimary}`}
+                    onClick={() => handleMarkPaid(viewItem.id)}
+                    disabled={updatingId === viewItem.id}
+                  >
+                    {updatingId === viewItem.id ? 'Сохранение…' : 'Клиент оплатил'}
+                  </button>
+                )}
                 <button
                   className={styles.modalBtn}
                   onClick={() => setViewItem(null)}
