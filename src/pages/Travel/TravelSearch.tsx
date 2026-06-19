@@ -10,8 +10,8 @@ import sharedStyles from './Travel.module.css';
 export function TravelSearch() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { destinations } = useDestinations();
-  const { cars, loading, search } = useCars();
+  const { destinations, loading: destLoading, error: destError, refresh: refreshDestinations } = useDestinations();
+  const { cars, loading, error: searchError, search } = useCars();
 
   const mode = searchParams.get('mode') || 'rental';
   const initialDestination = searchParams.get('destination') || '';
@@ -55,9 +55,9 @@ export function TravelSearch() {
 
   const transmissionLabel = (t: string) => (t === 'automatic' ? 'Автомат' : 'Механика');
 
-  const pageTitle = mode === 'storage' ? 'Парковка авто' : 'Поиск автомобиля';
+  const pageTitle = mode === 'storage' ? 'Хранение авто' : 'Поиск автомобиля';
   const pageSubtitle = mode === 'storage'
-    ? 'Выберите локацию для хранения вашего автомобиля'
+    ? 'Арендуйте авто на курорте и оставьте своё на хранение — дополнительная услуга при бронировании'
     : 'Найдите подходящий автомобиль на курорте';
 
   return (
@@ -117,7 +117,7 @@ export function TravelSearch() {
             <div className={styles.filterGroup}>
               <label className={styles.filterLabel}>&nbsp;</label>
               <Button variant="primary" className={styles.searchBtn} onClick={handleSearch} disabled={!selectedDestination}>
-                {mode === 'storage' ? 'Найти парковку' : 'Найти'}
+                {mode === 'storage' ? 'Найти авто с хранением' : 'Найти'}
               </Button>
             </div>
           </div>
@@ -125,12 +125,20 @@ export function TravelSearch() {
       </div>
 
       <div className={styles.results}>
-        {loading ? (
+        {(destError || searchError) && (
+          <div className={sharedStyles.error}>
+            <p>{destError || searchError}</p>
+            <Button variant="secondary" size="small" onClick={() => { refreshDestinations(); if (hasSearched) handleSearch(); }}>
+              Повторить
+            </Button>
+          </div>
+        )}
+        {loading || destLoading ? (
           <div className={sharedStyles.loading}>
             <div className={sharedStyles.spinner} />
             <p>Поиск...</p>
           </div>
-        ) : hasSearched && cars.length === 0 ? (
+        ) : hasSearched && cars.length === 0 && !searchError ? (
           <div className={sharedStyles.emptyState}>
             <h2 className={styles.emptyTitle}>Нет подходящих автомобилей</h2>
             <p className={styles.emptyText}>Попробуйте изменить параметры поиска</p>
@@ -186,7 +194,7 @@ export function TravelSearch() {
                           navigate(`/booking/${car.id}?${params.toString()}`);
                         }}
                       >
-                        {mode === 'storage' ? 'Забронировать парковку' : 'Забронировать'}
+                        {mode === 'storage' ? 'Забронировать с хранением' : 'Забронировать'}
                       </Button>
                     </div>
                   </div>

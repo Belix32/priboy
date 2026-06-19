@@ -8,10 +8,11 @@ import { Footer } from '../../components/Footer/Footer';
 import { useDestinations } from '../../hooks/useDestinations';
 import { HERO_IMAGE, HOW_IT_WORKS_STEPS, FEATURES } from '../../lib/travel/seed';
 import styles from './TravelHome.module.css';
+import sharedStyles from './Travel.module.css';
 
 export function TravelHome() {
   const navigate = useNavigate();
-  const { destinations, loading } = useDestinations();
+  const { destinations, loading, error, refresh } = useDestinations();
 
   return (
     <div className={styles.page}>
@@ -39,7 +40,7 @@ export function TravelHome() {
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <rect x="3" y="3" width="18" height="18" rx="2" /><path d="M9 3v18M3 9h6M3 15h6" />
               </svg>
-              Парковка моего авто
+              Хранение моего авто
             </Button>
             <Button
               variant="secondary"
@@ -110,12 +111,18 @@ export function TravelHome() {
             linkText="Смотреть все"
             linkTo="/search?mode=rental"
           />
+          {error && (
+            <div className={sharedStyles.error}>
+              <p>{error}</p>
+              <Button variant="secondary" size="small" onClick={refresh}>Повторить</Button>
+            </div>
+          )}
           {loading ? (
             <div className={styles.loading}>
               <div className={styles.spinner} />
               <p>Загрузка направлений...</p>
             </div>
-          ) : (
+          ) : error ? null : (
             <div className={styles.destinationsGrid}>
               {destinations.slice(0, 5).map((dest) => (
                 <DestinationCard key={dest.id} destination={dest} />

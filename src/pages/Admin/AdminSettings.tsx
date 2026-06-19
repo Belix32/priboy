@@ -10,56 +10,9 @@ import styles from './AdminTravel.module.css';
 // Types
 // ============================================================================
 
-interface ServiceSettings {
-  site_name: string;
-  tagline: string;
-  logo_url: string;
-  support_email: string;
-  support_phone: string;
-  address: string;
-  default_commission_rate: number;
-  storage_price_per_day: number;
-  min_rental_days: number;
-  max_rental_days: number;
-  currency: string;
-  booking_confirmation_required: boolean;
-  enable_storage: boolean;
-}
-
-// ============================================================================
-// Mock / Default data
-// ============================================================================
-
-const SETTINGS_KEY = 'priboi_admin_settings';
-
-const DEFAULT_SETTINGS: ServiceSettings = {
-  site_name: 'Прибой',
-  tagline: 'Колёса к морю',
-  logo_url: '',
-  support_email: 'support@priboi.ru',
-  support_phone: '+7 (800) 555-35-35',
-  address: 'г. Сочи, ул. Курортная, д. 1',
-  default_commission_rate: 15,
-  storage_price_per_day: 500,
-  min_rental_days: 1,
-  max_rental_days: 30,
-  currency: '₽',
-  booking_confirmation_required: true,
-  enable_storage: true,
-};
-
-function loadSettings(): ServiceSettings {
-  try {
-    const raw = localStorage.getItem(SETTINGS_KEY);
-    return raw ? { ...DEFAULT_SETTINGS, ...JSON.parse(raw) } : DEFAULT_SETTINGS;
-  } catch {
-    return DEFAULT_SETTINGS;
-  }
-}
-
-function saveSettings(settings: ServiceSettings): void {
-  localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
-}
+import { getAppSettings, updateAppSettingsAdmin, DEFAULT_SERVICE_SETTINGS } from '../../lib/travel/settings';
+import type { ServiceSettings } from '../../lib/travel/settings';
+import { getErrorMessage } from '../../lib/apiError';
 
 // ============================================================================
 // Social / SEO placeholders
@@ -85,10 +38,11 @@ const SOCIAL_PRESETS: SocialLink[] = [
 export function AdminSettings() {
   const { hasAdminAccess } = useAuth();
 
-  const [settings, setSettings] = useState<ServiceSettings>(DEFAULT_SETTINGS);
+  const [settings, setSettings] = useState<ServiceSettings>(DEFAULT_SERVICE_SETTINGS);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'general' | 'contacts' | 'branding'>('general');
 
   // Social links state
@@ -106,30 +60,31 @@ export function AdminSettings() {
   }
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setSettings(loadSettings());
-      setLoading(false);
-    }, 200);
-    return () => clearTimeout(timer);
+    getAppSettings()
+      .then(setSettings)
+      .finally(() => setLoading(false));
   }, []);
 
-  const handleChange = (field: keyof ServiceSettings, value: any) => {
+  const handleChange = (field: keyof ServiceSettings, value: ServiceSettings[keyof ServiceSettings]) => {
     setSettings((prev) => ({ ...prev, [field]: value }));
     setSaved(false);
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     setSaving(true);
-    setTimeout(() => {
-      saveSettings(settings);
-      // Also save SEO data
+    setSaveError(null);
+    try {
+      await updateAppSettingsAdmin(settings);
       localStorage.setItem('priboi_seo_title', seoTitle);
       localStorage.setItem('priboi_seo_desc', seoDesc);
       localStorage.setItem('priboi_seo_keywords', seoKeywords);
-      setSaving(false);
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
-    }, 400);
+    } catch (err) {
+      setSaveError(getErrorMessage(err, 'Не удалось сохранить настройки'));
+    } finally {
+      setSaving(false);
+    }
   };
 
   if (loading) {
@@ -146,6 +101,7 @@ export function AdminSettings() {
         <div className={styles.travelPageHeader}>
           <h1>Настройки сервиса</h1>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            {saveError && <span className={styles.travelErrorBadge}>{saveError}</span>}
             {saved && <span className={styles.travelSavedBadge}>✓ Сохранено</span>}
             <button className={styles.travelSaveBtn} onClick={handleSave} disabled={saving}>
               {saving ? 'Сохранение...' : 'Сохранить настройки'}

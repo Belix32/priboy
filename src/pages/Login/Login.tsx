@@ -1,33 +1,33 @@
-import { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useState, useEffect, useCallback } from 'react';
+import { useNavigate, Link, useLocation, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import { getPostAuthPath } from '../../lib/authRedirect';
+import { getSupabaseClient, isSupabaseConfigured } from '../../lib/supabase';
 import { Button } from '../../components/Button/Button';
 import { Logo } from '../../components/Logo/Logo';
 import styles from './Login.module.css';
 
 export function Login() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const [searchParams] = useSearchParams();
   const { login, isAuthenticated, user } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [forgotMode, setForgotMode] = useState(false);
+  const [forgotSent, setForgotSent] = useState(false);
+
+  const redirectOpts = {
+    from: (location.state as { from?: string })?.from,
+    redirect: searchParams.get('redirect'),
+  };
 
   useEffect(() => {
     if (isAuthenticated) {
-      const role = user?.role || 'user';
-      switch (role) {
-        case 'admin':
-        case 'moderator':
-          navigate('/admin');
-          break;
-        case 'partner':
-          navigate('/partner');
-          break;
-        default:
-          navigate('/profile');
-      }
+      navigate(getPostAuthPath(user?.role || 'user', redirectOpts), { replace: true });
     }
   }, [isAuthenticated, navigate, user]);
 
@@ -43,19 +43,77 @@ export function Login() {
     setLoading(false);
 
     if (result.success) {
-      if (result.role === 'admin' || result.role === 'moderator') {
-        navigate('/admin');
-      } else if (result.role === 'partner') {
-        navigate('/partner');
-      } else {
-        navigate('/profile');
-      }
+      navigate(getPostAuthPath(result.role || 'user', redirectOpts), { replace: true });
     } else {
       setError(result.error || 'Ошибка входа');
     }
   };
 
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    if (!email) {
+      setError('Введите email для восстановления пароля');
+      return;
+    }
+    if (!isSupabaseConfigured()) {
+      setError('Восстановление пароля доступно только при подключённом Supabase');
+      return;
+    }
+    setLoading(true);
+    try {
+      const supabase = getSupabaseClient();
+      const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/login`,
+      });
+      if (resetError) throw resetError;
+      setForgotSent(true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Не удалось отправить письмо');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   if (isAuthenticated) return null;
+
+  if (forgotMode) {
+    return (
+      <div className={styles.page}>
+        <div className={styles.container}>
+          <div className={styles.card}>
+            <h1 className={styles.title}>Восстановление пароля</h1>
+            <p className={styles.subtitle}>
+              {forgotSent
+                ? 'Письмо отправлено. Проверьте почту и перейдите по ссылке.'
+                : 'Введите email — мы отправим ссылку для сброса пароля'}
+            </p>
+            {!forgotSent && (
+              <form onSubmit={handleForgotPassword}>
+                <div className={styles.field}>
+                  <label className={styles.label}>Email</label>
+                  <input
+                    className={styles.input}
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="your@email.ru"
+                  />
+                </div>
+                {error && <div className={styles.formError}>{error}</div>}
+                <Button variant="primary" size="large" fullWidth type="submit" disabled={loading} style={{ marginTop: 20 }}>
+                  {loading ? 'Отправка...' : 'Отправить ссылку'}
+                </Button>
+              </form>
+            )}
+            <button type="button" className={styles.forgotLink} onClick={() => { setForgotMode(false); setForgotSent(false); setError(''); }}>
+              ← Вернуться ко входу
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={styles.page}>
@@ -175,6 +233,10 @@ export function Login() {
                 </div>
               </div>
             </div>
+
+            <button type="button" className={styles.forgotLink} onClick={() => setForgotMode(true)}>
+              Забыли пароль?
+            </button>
 
             {error && (
               <div className={styles.formError} style={{ marginTop: 16 }}>

@@ -14,6 +14,7 @@ const navItems: NavItem[] = [
   { path: '/partner/cars', label: 'Мои авто', icon: '🚗' },
   { path: '/partner/bookings', label: 'Бронирования', icon: '📅' },
   { path: '/partner/storage', label: 'Хранение', icon: '🔒' },
+  { path: '/partner/scan', label: 'Проверка QR', icon: '📷' },
 ];
 
 interface PartnerLayoutProps {

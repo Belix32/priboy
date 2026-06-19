@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import { getAvailableCars } from '../lib/travel/api';
+import { getErrorMessage } from '../lib/apiError';
 import type { PartnerCar, TravelSearchParams } from '../lib/travel/types';
 
 export function useCars() {
@@ -14,8 +15,8 @@ export function useCars() {
       const data = await getAvailableCars(params);
       setCars(data);
       return data;
-    } catch {
-      setError('Не удалось найти автомобили');
+    } catch (err) {
+      setError(getErrorMessage(err, 'Не удалось найти автомобили'));
       setCars([]);
       return [];
     } finally {

@@ -88,3 +88,28 @@ export {
   markStorageCheckIn,
   markStorageCheckOut,
 } from './api';
+
+export {
+  validatePromoCode,
+  applyDiscountToPrice,
+  incrementPromoUse,
+  computePromoDiscount,
+} from './promos';
+export type { PromoValidationResult } from './promos';
+
+export {
+  getAppSettings,
+  updateAppSettingsAdmin,
+  getStoragePricePerDay,
+  DEFAULT_SERVICE_SETTINGS,
+} from './settings';
+export type { ServiceSettings } from './settings';
+
+export {
+  getCurrentUserProfile,
+  updateUserProfile,
+  profileToUserCar,
+} from './profileApi';
+export type { UserProfileData } from './profileApi';
+
+export { createYooKassaPayment } from './payments';

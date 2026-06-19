@@ -1,75 +1,62 @@
-# 🌊 Прибой — Аренда автомобилей на море
+# Прибой v2 — Парковка и аренда авто на юге России
 
-**Прибой. Колёса к морю.**
+**Колёса к морю.** React + Vite + Supabase SPA для бронирования аренды авто с опцией хранения своего автомобиля.
 
-Сервис аренды автомобилей на курортах Черноморского побережья. Прилетел на море — получи машину. Свою оставь на хранении.
+- Production: https://priboy-six.vercel.app
+- Repo: https://github.com/Belix32/priboy
 
----
-
-## Структура проекта
+## Структура
 
 ```
-sea-module/
+priboy/
 ├── src/
-│   ├── pages/
-│   │   ├── Travel/              # Пользовательские страницы (7 страниц + CSS)
-│   │   │   ├── TravelHome.tsx         # Главная (лендинг)
-│   │   │   ├── TravelSearch.tsx       # Поиск авто по направлениям
-│   │   │   ├── TravelBooking.tsx      # Оформление брони
-│   │   │   ├── TravelBookingConfirm.tsx # Подтверждение
-│   │   │   ├── TravelBookingSuccess.tsx # Успешное бронирование с QR
-│   │   │   ├── MyTravelTrips.tsx      # Мои поездки
-│   │   │   └── TravelMap.tsx          # Карта офисов партнёров
-│   │   ├── Partner/             # Кабинет партнёра (5 файлов)
-│   │   └── Admin/               # Админка (8 файлов)
-│   └── lib/
-│       └── travel/              # Бизнес-логика (3 файла)
-├── supabase/
-│   └── migrations/
-│       └── 004_travel_module.sql  # Схема БД
-├── cleanup-more.sh              # Скрипт переноса из основного проекта
-└── README.md
+│   ├── pages/Travel/       # Клиент: поиск, бронь, профиль, гайд
+│   ├── pages/Admin/        # Админ-панель
+│   ├── pages/Partner/      # Кабинет партнёра + проверка QR
+│   ├── lib/travel/         # API, промокоды, настройки, профиль
+│   └── hooks/              # useBookings, useCars, useDestinations
+├── api/payments/           # Vercel serverless: ЮKassa create + webhook
+└── supabase/
+    ├── DEPLOY_ALL.sql      # Полный деплой схемы
+    └── migrations/         # 001–005 по порядку
 ```
 
-## Функционал
-
-- **Аренда авто на курорте** — выбор машины в Сочи, Анапе, Геленджике
-- **Хранение своего авто** — оставьте свою машину в надёжном месте на время отпуска
-- **QR-код для получения** — быстрая выдача авто по QR
-- **Кабинет партнёра** — управление автопарком, бронями, хранением
-- **Админ-панель** — управления направлениями, партнёрами, автомобилями
-- **Карта офисов** — все точки выдачи на карте
-
-## Технологии
-
-- React 18 + TypeScript + Vite
-- Supabase (с localStorage fallback для демо)
-- React Leaflet (карта)
-- CSS Modules
-
-## Бренд
-
-- **Название:** Прибой
-- **Слоган:** Колёса к морю
-- **Ключи localStorage:** `priboi_travel_*`
-- **QR-префикс:** `PRIBOI:TRAVEL:`
-
-## Как запустить
+## Запуск
 
 ```bash
-# Установка зависимостей
 npm install
-
-# Запуск dev-сервера
+cp .env.example .env   # VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY
 npm run dev
 ```
 
-## Как перенести из основного проекта
+Без Supabase env — demo-режим (localStorage + mock auth).
+
+## Supabase
+
+1. Выполните [`supabase/DEPLOY_ALL.sql`](supabase/DEPLOY_ALL.sql) в SQL Editor (включает миграции 001–005).
+2. В Auth: Email provider ON, sign-up ON.
+3. Env на Vercel: `VITE_SUPABASE_*`, `YOOKASSA_SHOP_ID`, `YOOKASSA_SECRET_KEY`, `SUPABASE_SERVICE_ROLE_KEY`.
+
+## Основные flow
+
+| Flow | Описание |
+|------|----------|
+| Бронирование | Search → Booking → Confirm → Success (pending до партнёра/оплаты) |
+| QR | Доступен после status `confirmed` или `active` |
+| Промокоды | Поле на странице бронирования + admin CRUD |
+| Оплата | ЮKassa через `/api/payments/create` + webhook |
+| Хранение авто | Add-on при аренде (не отдельный продукт) |
+
+## Тесты
 
 ```bash
-# Сухой прогон
-bash cleanup-more.sh --dry-run
-
-# Перенос
-bash cleanup-more.sh
+npm test
 ```
+
+## API modules
+
+- `api.ts` — core CRUD (dual-mode Supabase/localStorage)
+- `promos.ts` — validatePromoCode, скидки
+- `settings.ts` — app_settings в Supabase
+- `profileApi.ts` — профиль + авто пользователя
+- `payments.ts` — клиентский вызов ЮKassa

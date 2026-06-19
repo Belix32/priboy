@@ -2,7 +2,10 @@ import { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { Button } from '../../components/Button/Button';
 import { useAuth } from '../../contexts/AuthContext';
+import { getSupabaseClient, isSupabaseConfigured } from '../../lib/supabase';
 import { getTravelBookingById } from '../../lib/travel/api';
+import { createYooKassaPayment } from '../../lib/travel/payments';
+import { getErrorMessage } from '../../lib/apiError';
 import { buildBookingQrText, generateBookingQrDataUrl } from '../../lib/travel/qrCode';
 import type { TravelBooking } from '../../lib/travel/types';
 import styles from './TravelBookingSuccess.module.css';
@@ -22,6 +25,8 @@ export function TravelBookingSuccess() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [qrCodeUrl, setQrCodeUrl] = useState('');
+  const [payLoading, setPayLoading] = useState(false);
+  const [payError, setPayError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!bookingId) {
@@ -29,18 +34,17 @@ export function TravelBookingSuccess() {
       setLoading(false);
       return;
     }
-    getTravelBookingById(bookingId).then((found) => {
-      if (found) {
-        setBooking(found);
-      } else {
-        setError('Бронирование не найдено');
-      }
-      setLoading(false);
-    });
+    getTravelBookingById(bookingId)
+      .then((found) => {
+        if (found) setBooking(found);
+        else setError('Бронирование не найдено');
+      })
+      .catch((err) => setError(getErrorMessage(err, 'Не удалось загрузить бронирование')))
+      .finally(() => setLoading(false));
   }, [bookingId]);
 
   useEffect(() => {
-    if (!booking) return;
+    if (!booking || (booking.status !== 'confirmed' && booking.status !== 'active')) return;
 
     let cancelled = false;
     const qrText = buildBookingQrText(booking, {
@@ -49,14 +53,36 @@ export function TravelBookingSuccess() {
       email: user?.email,
     });
 
-    generateBookingQrDataUrl(qrText).then((url) => {
-      if (!cancelled) setQrCodeUrl(url);
-    });
+    generateBookingQrDataUrl(qrText)
+      .then((url) => {
+        if (!cancelled) setQrCodeUrl(url);
+      })
+      .catch(() => {
+        if (!cancelled) setError('Не удалось сгенерировать QR-код');
+      });
 
     return () => {
       cancelled = true;
     };
   }, [booking, user]);
+
+  const handlePayOnline = async () => {
+    if (!booking || !isSupabaseConfigured()) return;
+    setPayLoading(true);
+    setPayError(null);
+    try {
+      const supabase = getSupabaseClient();
+      const { data } = await supabase.auth.getSession();
+      const token = data.session?.access_token;
+      if (!token) throw new Error('Необходима авторизация');
+      const { confirmationUrl } = await createYooKassaPayment(booking.id, token);
+      window.location.href = confirmationUrl;
+    } catch (err) {
+      setPayError(getErrorMessage(err, 'Оплата временно недоступна'));
+    } finally {
+      setPayLoading(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -73,22 +99,30 @@ export function TravelBookingSuccess() {
       <div className={styles.page}>
         <div className={styles.container}>
           <p>{error || 'Ошибка'}</p>
-          <Button variant="primary" onClick={() => navigate('/my-trips')}>Мои поездки</Button>
+          <Button variant="primary" onClick={() => navigate('/profile?tab=trips')}>Мои поездки</Button>
         </div>
       </div>
     );
   }
 
   const carName = booking.car ? `${booking.car.brand} ${booking.car.model}` : 'Автомобиль';
+  const isPending = booking.status === 'pending';
+  const isConfirmed = booking.status === 'confirmed' || booking.status === 'active';
 
   return (
     <div className={styles.page}>
       <div className={styles.container}>
-        <div className={styles.successIcon}>✓</div>
-        <h1 className={styles.title}>Бронирование подтверждено!</h1>
-        <p className={styles.subtitle}>Покажите QR-код при получении автомобиля</p>
+        <div className={styles.successIcon}>{isPending ? '⏳' : '✓'}</div>
+        <h1 className={styles.title}>
+          {isPending ? 'Бронирование оформлено' : 'Бронирование подтверждено!'}
+        </h1>
+        <p className={styles.subtitle}>
+          {isPending
+            ? 'Ожидайте подтверждения партнёра. После подтверждения или оплаты станет доступен QR-код.'
+            : 'Покажите QR-код при получении автомобиля'}
+        </p>
 
-        {qrCodeUrl && (
+        {isConfirmed && qrCodeUrl && (
           <div className={styles.qrSection}>
             <img src={qrCodeUrl} alt="QR-код бронирования" className={styles.qrCode} width={200} height={200} />
           </div>
@@ -109,8 +143,18 @@ export function TravelBookingSuccess() {
           <p className={styles.total}>Итого: {booking.total_price.toLocaleString('ru-RU')} ₽</p>
         </div>
 
+        {isPending && booking.payment_status === 'pending' && isSupabaseConfigured() && (
+          <div className={styles.paySection}>
+            <Button variant="primary" onClick={handlePayOnline} disabled={payLoading}>
+              {payLoading ? 'Переход к оплате...' : 'Оплатить онлайн (ЮKassa)'}
+            </Button>
+            <p className={styles.payNote}>Или оплатите при получении авто в офисе партнёра</p>
+            {payError && <p className={styles.payError}>{payError}</p>}
+          </div>
+        )}
+
         <div className={styles.actions}>
-          <Button variant="primary" onClick={() => navigate('/my-trips')}>Мои поездки</Button>
+          <Button variant="primary" onClick={() => navigate('/profile?tab=trips')}>Мои поездки</Button>
           <Button variant="secondary" onClick={() => navigate('/')}>На главную</Button>
         </div>
       </div>

@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { getActiveDestinations } from '../lib/travel/api';
+import { getErrorMessage } from '../lib/apiError';
 import type { TravelDestination } from '../lib/travel/types';
 
 export function useDestinations() {
@@ -13,8 +14,8 @@ export function useDestinations() {
     try {
       const data = await getActiveDestinations();
       setDestinations(data);
-    } catch {
-      setError('Не удалось загрузить направления');
+    } catch (err) {
+      setError(getErrorMessage(err, 'Не удалось загрузить направления'));
     } finally {
       setLoading(false);
     }

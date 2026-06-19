@@ -7,7 +7,7 @@ import { Logo } from '../Logo/Logo';
 import styles from './Header.module.css';
 
 const PRIMARY_NAV = [
-  { to: '/search?mode=storage', label: 'Парковка', mode: 'storage' as const },
+  { to: '/search?mode=storage', label: 'Хранение авто', mode: 'storage' as const },
   { to: '/search?mode=rental', label: 'Аренда', mode: 'rental' as const },
 ];
 

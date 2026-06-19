@@ -1,8 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useBookings } from '../../hooks/useBookings';
+import { getErrorMessage } from '../../lib/apiError';
 import { cancelTravelBooking } from '../../lib/travel/api';
+import { getCurrentUserProfile, updateUserProfile, profileToUserCar } from '../../lib/travel/profileApi';
 import { Button } from '../../components/Button/Button';
 import type { TravelBooking } from '../../lib/travel/types';
 import styles from './UserProfile.module.css';
@@ -62,53 +64,122 @@ function saveOwnCar(car: OwnCarInfo): void {
 export function UserProfile() {
   const { user, hasAdminAccess } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { bookings, loading, error, refresh } = useBookings();
   const [activeTab, setActiveTab] = useState<'active' | 'history'>('active');
   const [cancellingId, setCancellingId] = useState<string | null>(null);
+  const [cancelError, setCancelError] = useState<string | null>(null);
+  const [profileError, setProfileError] = useState<string | null>(null);
+  const [savingProfile, setSavingProfile] = useState(false);
+
+  const [name, setName] = useState('');
+  const [phone, setPhone] = useState('');
+  const [editingProfile, setEditingProfile] = useState(false);
 
   const [ownCar, setOwnCar] = useState<OwnCarInfo | null>(null);
   const [editingCar, setEditingCar] = useState(false);
   const [carForm, setCarForm] = useState<OwnCarInfo>({ brand: '', model: '', color: '', license_plate: '' });
 
   useEffect(() => {
+    if (searchParams.get('tab') === 'trips') {
+      setActiveTab('active');
+    }
+  }, [searchParams]);
+
+  useEffect(() => {
+    getCurrentUserProfile().then((profile) => {
+      if (profile) {
+        setName(profile.name || user?.name || '');
+        setPhone(profile.phone || user?.phone || '');
+        const car = profileToUserCar(profile);
+        if (car) {
+          setOwnCar({
+            brand: car.brand,
+            model: car.model,
+            color: car.color || '',
+            license_plate: car.license_plate || '',
+          });
+          setCarForm({
+            brand: car.brand,
+            model: car.model,
+            color: car.color || '',
+            license_plate: car.license_plate || '',
+          });
+        }
+      }
+    });
+  }, [user]);
+
+  useEffect(() => {
     const saved = loadOwnCar();
-    if (saved) {
+    if (saved && !ownCar) {
       setOwnCar(saved);
       setCarForm(saved);
     }
-  }, []);
+  }, [ownCar]);
 
   const handleCancel = useCallback(async (tripId: string) => {
     if (!confirm('Вы уверены, что хотите отменить поездку?')) return;
 
     setCancellingId(tripId);
+    setCancelError(null);
     try {
       await cancelTravelBooking(tripId);
       await refresh();
     } catch (err) {
-      console.error('Error cancelling trip:', err);
+      setCancelError(getErrorMessage(err, 'Не удалось отменить поездку'));
     } finally {
       setCancellingId(null);
     }
   }, [refresh]);
 
-  const handleSaveCar = () => {
+  const handleSaveCar = async () => {
     if (!carForm.brand.trim() || !carForm.model.trim()) return;
-    saveOwnCar(carForm);
-    setOwnCar(carForm);
-    setEditingCar(false);
+    setSavingProfile(true);
+    setProfileError(null);
+    try {
+      await updateUserProfile({ own_car: carForm });
+      saveOwnCar(carForm);
+      setOwnCar(carForm);
+      setEditingCar(false);
+    } catch (err) {
+      setProfileError(getErrorMessage(err, 'Не удалось сохранить автомобиль'));
+    } finally {
+      setSavingProfile(false);
+    }
+  };
+
+  const handleSaveProfile = async () => {
+    setSavingProfile(true);
+    setProfileError(null);
+    try {
+      await updateUserProfile({ name: name.trim(), phone: phone.trim() });
+      setEditingProfile(false);
+    } catch (err) {
+      setProfileError(getErrorMessage(err, 'Не удалось сохранить профиль'));
+    } finally {
+      setSavingProfile(false);
+    }
+  };
+
+  const handleRemoveCar = async () => {
+    if (!confirm('Удалить информацию об автомобиле?')) return;
+    setSavingProfile(true);
+    try {
+      await updateUserProfile({ own_car: null });
+      localStorage.removeItem(STORAGE_KEY);
+      setOwnCar(null);
+      setCarForm({ brand: '', model: '', color: '', license_plate: '' });
+    } catch (err) {
+      setProfileError(getErrorMessage(err, 'Не удалось удалить автомобиль'));
+    } finally {
+      setSavingProfile(false);
+    }
   };
 
   const handleEditCar = () => {
     setCarForm(ownCar || { brand: '', model: '', color: '', license_plate: '' });
     setEditingCar(true);
-  };
-
-  const handleRemoveCar = () => {
-    if (!confirm('Удалить информацию об автомобиле?')) return;
-    localStorage.removeItem(STORAGE_KEY);
-    setOwnCar(null);
-    setCarForm({ brand: '', model: '', color: '', license_plate: '' });
   };
 
   const activeTrips = bookings.filter((t) =>
@@ -238,6 +309,46 @@ export function UserProfile() {
             </Button>
           </div>
         </div>
+
+        {profileError && <p className={styles.profileError}>{profileError}</p>}
+
+        <section className={styles.section}>
+          <div className={styles.sectionHeader}>
+            <h2 className={styles.sectionTitle}>Контактные данные</h2>
+          </div>
+          <div className={styles.carCard}>
+            {editingProfile ? (
+              <div className={styles.carForm}>
+                <div className={styles.carFormRow}>
+                  <div className={styles.carFormField}>
+                    <label>Имя</label>
+                    <input className={styles.carFormInput} value={name} onChange={(e) => setName(e.target.value)} />
+                  </div>
+                  <div className={styles.carFormField}>
+                    <label>Телефон</label>
+                    <input className={styles.carFormInput} value={phone} onChange={(e) => setPhone(e.target.value)} />
+                  </div>
+                </div>
+                <div className={styles.carFormActions}>
+                  <Button variant="primary" size="small" onClick={handleSaveProfile} disabled={savingProfile}>
+                    {savingProfile ? 'Сохранение...' : 'Сохранить'}
+                  </Button>
+                  <Button variant="ghost" size="small" onClick={() => setEditingProfile(false)}>Отмена</Button>
+                </div>
+              </div>
+            ) : (
+              <div className={styles.carInfo}>
+                <div>
+                  <div className={styles.carName}>{name || user.name || '—'}</div>
+                  <div className={styles.carDetails}>{phone || user.phone || 'Телефон не указан'}</div>
+                </div>
+                <button type="button" className={styles.carActionBtn} onClick={() => setEditingProfile(true)}>
+                  Редактировать
+                </button>
+              </div>
+            )}
+          </div>
+        </section>
 
         <section className={styles.section}>
           <div className={styles.sectionHeader}>
@@ -389,6 +500,8 @@ export function UserProfile() {
               )}
             </button>
           </div>
+
+          {cancelError && <p className={styles.cancelError}>{cancelError}</p>}
 
           <div className={styles.list}>
             {loading ? (

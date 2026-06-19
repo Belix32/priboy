@@ -36,6 +36,7 @@ const PartnerDashboard = lazy(() => import('./pages/Partner/PartnerDashboard').t
 const PartnerCars = lazy(() => import('./pages/Partner/PartnerCars').then(m => ({ default: m.PartnerCars })));
 const PartnerBookings = lazy(() => import('./pages/Partner/PartnerBookings').then(m => ({ default: m.PartnerBookings })));
 const PartnerStorage = lazy(() => import('./pages/Partner/PartnerStorage').then(m => ({ default: m.PartnerStorage })));
+const PartnerScan = lazy(() => import('./pages/Partner/PartnerScan').then(m => ({ default: m.PartnerScan })));
 
 function ProtectedAdmin({ children }: { children: React.ReactNode }) {
   return <RouteGuard requireAdmin>{children}</RouteGuard>;
@@ -109,6 +110,7 @@ export default function App() {
             <Route path="/partner/cars" element={<ProtectedPartner><PartnerCars /></ProtectedPartner>} />
             <Route path="/partner/bookings" element={<ProtectedPartner><PartnerBookings /></ProtectedPartner>} />
             <Route path="/partner/storage" element={<ProtectedPartner><PartnerStorage /></ProtectedPartner>} />
+            <Route path="/partner/scan" element={<ProtectedPartner><PartnerScan /></ProtectedPartner>} />
           </Routes>
         </Suspense>
       </main>

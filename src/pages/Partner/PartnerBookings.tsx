@@ -1,6 +1,7 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import { getPartnerBookings } from '../../lib/travel/api';
+import { getPartnerBookings, updateTravelBookingStatus } from '../../lib/travel/api';
+import { getErrorMessage } from '../../lib/apiError';
 import { PartnerLayout } from './PartnerLayout';
 import styles from './Partner.module.css';
 
@@ -63,17 +64,21 @@ export function PartnerBookings() {
   const [statusFilter, setStatusFilter] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [viewItem, setViewItem] = useState<BookingItem | null>(null);
+  const [statusError, setStatusError] = useState<string | null>(null);
+  const [updatingId, setUpdatingId] = useState<string | null>(null);
 
-  useEffect(() => {
+  const loadBookings = useCallback(async () => {
     if (!partnerId) {
       setLoading(false);
       return;
     }
-    getPartnerBookings(partnerId).then((data) => {
+    setLoading(true);
+    try {
+      const data = await getPartnerBookings(partnerId);
       setBookings(
         data.map((b) => ({
           id: b.id,
-          client: b.user_id.slice(0, 8),
+          client: b.client_name || b.user_id.slice(0, 8),
           car_brand: b.car?.brand || '',
           car_model: b.car?.model || '',
           destination: b.destination?.name || '',
@@ -88,9 +93,16 @@ export function PartnerBookings() {
           own_plate: b.own_car_license_plate || undefined,
         })),
       );
+    } catch (err) {
+      setStatusError(getErrorMessage(err, 'Не удалось загрузить бронирования'));
+    } finally {
       setLoading(false);
-    });
+    }
   }, [partnerId]);
+
+  useEffect(() => {
+    loadBookings();
+  }, [loadBookings]);
 
   const filteredData = useMemo(() => {
     return bookings.filter((b) => {
@@ -167,10 +179,18 @@ export function PartnerBookings() {
     return map[status] || '';
   };
 
-  const handleStatusChange = (id: string, newStatus: BookingItem['status']) => {
-    setBookings((prev) =>
-      prev.map((b) => (b.id === id ? { ...b, status: newStatus } : b))
-    );
+  const handleStatusChange = async (id: string, newStatus: BookingItem['status']) => {
+    setUpdatingId(id);
+    setStatusError(null);
+    try {
+      await updateTravelBookingStatus(id, newStatus);
+      await loadBookings();
+      setViewItem((prev) => (prev?.id === id ? { ...prev, status: newStatus } : prev));
+    } catch (err) {
+      setStatusError(getErrorMessage(err, 'Не удалось обновить статус'));
+    } finally {
+      setUpdatingId(null);
+    }
   };
 
   if (loading) {
@@ -184,6 +204,7 @@ export function PartnerBookings() {
   return (
     <PartnerLayout title="Бронирования">
       <div>
+        {statusError && <div className={styles.errorBanner}>{statusError}</div>}
         {/* Stats */}
         <div className={styles.statsGrid}>
           <div className={styles.statCard}>

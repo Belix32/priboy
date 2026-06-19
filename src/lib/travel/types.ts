@@ -131,6 +131,9 @@ export interface TravelBooking {
   payment_method: string | null;
   payment_id: string | null;
   notes: string | null;
+  promo_code?: string | null;
+  discount_amount?: number;
+  client_name?: string | null;
   created_at: string;
   updated_at: string;
   // Joined fields
@@ -189,6 +192,8 @@ export interface TravelBookingForm {
   own_car_color?: string;
   own_car_license_plate?: string;
   notes?: string;
+  promo_code?: string;
+  discount_amount?: number;
 }
 
 export interface UserCarInfo {
@@ -274,4 +279,5 @@ export interface TravelPriceBreakdown {
   totalStoragePrice: number;
   commissionPrice: number;
   totalPrice: number;
+  discountAmount?: number;
 }

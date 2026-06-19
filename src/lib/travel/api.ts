@@ -3,6 +3,10 @@
 // Dual mode: Supabase first, localStorage fallback
 // ============================================================================
 
+import { throwIfSupabaseError } from '../apiError';
+import { getStoragePricePerDay } from './settings';
+import { validatePromoCode, incrementPromoUse } from './promos';
+import { getCurrentUserProfile } from './profileApi';
 import { getSupabaseClient, isSupabaseConfigured } from '../supabase';
 import { seedDemoDataIfNeeded, STORAGE_PRICE_PER_DAY } from './seed';
 import type {
@@ -78,11 +82,7 @@ export async function getActiveDestinations(): Promise<TravelDestination[]> {
     .eq('is_active', true)
     .order('sort_order', { ascending: true });
 
-  if (error) {
-    console.error('Error fetching active destinations:', error);
-    return [];
-  }
-
+  throwIfSupabaseError(error, 'Не удалось загрузить направления');
   return (data as TravelDestination[]) || [];
 }
 
@@ -630,10 +630,7 @@ export async function getAvailableCars(params: TravelSearchParams): Promise<Part
 
   const { data, error } = await query.order('price_per_day', { ascending: true });
 
-  if (error) {
-    console.error('Error fetching available cars:', error);
-    return [];
-  }
+  throwIfSupabaseError(error, 'Не удалось найти автомобили');
 
   const cars = (data as PartnerCar[]) || [];
 
@@ -1127,15 +1124,40 @@ export async function createTravelBooking(
     throw new Error('Автомобиль не найден');
   }
 
+  const storagePricePerDay = form.has_storage ? await getStoragePricePerDay() : 0;
+
+  let discountAmount = form.discount_amount || 0;
+  let promoCode: string | null = form.promo_code || null;
+  if (form.promo_code) {
+    const subtotalPreview = calculateTravelPrice(
+      car,
+      form.start_date,
+      form.end_date,
+      form.has_storage,
+      storagePricePerDay,
+    );
+    const promoResult = await validatePromoCode(
+      form.promo_code,
+      subtotalPreview.totalRentalPrice + subtotalPreview.totalStoragePrice,
+    );
+    if (!promoResult.valid) {
+      throw new Error(promoResult.message || 'Неверный промокод');
+    }
+    discountAmount = promoResult.discountAmount;
+    promoCode = form.promo_code.toUpperCase();
+  }
+
   const price = calculateTravelPrice(
     car,
     form.start_date,
     form.end_date,
     form.has_storage,
-    STORAGE_PRICE_PER_DAY,
+    storagePricePerDay,
+    discountAmount,
   );
 
-  const storagePricePerDay = form.has_storage ? STORAGE_PRICE_PER_DAY : 0;
+  const profile = await getCurrentUserProfile();
+  const clientName = profile?.name || null;
 
   if (!isSupabaseConfigured()) {
     const all = getLocalData<TravelBooking>(LS_BOOKINGS);
@@ -1161,6 +1183,9 @@ export async function createTravelBooking(
       own_car_license_plate: userCarInfo?.license_plate || form.own_car_license_plate || null,
       total_price: price.totalPrice,
       commission_price: price.commissionPrice,
+      promo_code: promoCode,
+      discount_amount: discountAmount,
+      client_name: clientName,
       status: 'pending',
       payment_status: 'pending',
       payment_method: null,
@@ -1211,6 +1236,9 @@ export async function createTravelBooking(
     own_car_license_plate: userCarInfo?.license_plate || form.own_car_license_plate || null,
     total_price: price.totalPrice,
     commission_price: price.commissionPrice,
+    promo_code: promoCode,
+    discount_amount: discountAmount,
+    client_name: clientName,
     status: 'pending',
     payment_status: 'pending',
     notes: form.notes || null,
@@ -1235,6 +1263,16 @@ export async function createTravelBooking(
       }
 
       const booking = result as TravelBooking;
+
+      if (promoCode && discountAmount > 0) {
+        const promoResult = await validatePromoCode(
+          promoCode,
+          price.totalRentalPrice + price.totalStoragePrice + discountAmount,
+        );
+        if (promoResult.promo) {
+          await incrementPromoUse(promoResult.promo.id);
+        }
+      }
 
       if (form.has_storage && booking.own_car_license_plate) {
         await createStorageRecord({
@@ -1341,8 +1379,7 @@ export async function getTravelBookingById(id: string): Promise<TravelBooking | 
 
   if (error) {
     if (error.code === 'PGRST116') return null;
-    console.error('Error fetching travel booking:', error);
-    return null;
+    throwIfSupabaseError(error, 'Не удалось загрузить бронирование');
   }
 
   return data as TravelBooking;
@@ -1729,6 +1766,7 @@ export function calculateTravelPrice(
   endDate: string,
   hasStorage: boolean,
   storagePricePerDay: number = 0,
+  discountAmount: number = 0,
 ): TravelPriceBreakdown {
   const start = new Date(startDate);
   const end = new Date(endDate);
@@ -1742,8 +1780,9 @@ export function calculateTravelPrice(
   const totalStoragePrice = totalStorageDays * storagePricePerDay;
 
   const subtotal = totalRentalPrice + totalStoragePrice;
-  const commissionPrice = Math.round(subtotal * 0.15 * 100) / 100;
-  const totalPrice = subtotal + commissionPrice;
+  const discountedSubtotal = Math.max(0, subtotal - discountAmount);
+  const commissionPrice = Math.round(discountedSubtotal * 0.15 * 100) / 100;
+  const totalPrice = discountedSubtotal + commissionPrice;
 
   return {
     totalRentalDays,
@@ -1752,6 +1791,7 @@ export function calculateTravelPrice(
     totalStoragePrice,
     commissionPrice,
     totalPrice,
+    discountAmount: discountAmount > 0 ? discountAmount : undefined,
   };
 }
 
@@ -1771,7 +1811,7 @@ export async function getPartnerBookings(partnerId: string): Promise<TravelBooki
     .select('*, destination:travel_destinations(*), car:partner_cars(*), location:partner_locations(*)')
     .eq('partner_id', partnerId)
     .order('created_at', { ascending: false });
-  if (error) { console.error('Error:', error); return []; }
+  if (error) throwIfSupabaseError(error, 'Не удалось загрузить бронирования партнёра');
   return (data as TravelBooking[]) || [];
 }
 
@@ -1851,7 +1891,7 @@ export async function confirmTravelBooking(bookingId: string): Promise<void> {
     .from('travel_bookings')
     .update({ status: 'confirmed' })
     .eq('id', bookingId);
-  if (error) console.error('Error confirming booking:', error);
+  throwIfSupabaseError(error, 'Не удалось подтвердить бронирование');
 }
 
 // Mark car as checked in to storage

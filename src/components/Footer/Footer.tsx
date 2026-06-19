@@ -18,7 +18,7 @@ export function Footer() {
           <div className={styles.column}>
             <h4>Услуги</h4>
             <ul>
-              <li><Link to="/search?mode=storage">Парковка авто</Link></li>
+              <li><Link to="/search?mode=storage">Хранение авто</Link></li>
               <li><Link to="/search?mode=rental">Аренда авто</Link></li>
               <li><Link to="/map">Локации</Link></li>
             </ul>

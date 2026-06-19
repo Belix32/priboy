@@ -1,6 +1,7 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import { getPartnerStorageRecords } from '../../lib/travel/api';
+import { getPartnerStorageRecords, updateStorageStatus } from '../../lib/travel/api';
+import { getErrorMessage } from '../../lib/apiError';
 import { PartnerLayout } from './PartnerLayout';
 import styles from './Partner.module.css';
 
@@ -49,13 +50,16 @@ export function PartnerStorage() {
   const [statusFilter, setStatusFilter] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [viewItem, setViewItem] = useState<StorageItem | null>(null);
+  const [statusError, setStatusError] = useState<string | null>(null);
 
-  useEffect(() => {
+  const loadStorage = useCallback(async () => {
     if (!partnerId) {
       setLoading(false);
       return;
     }
-    getPartnerStorageRecords(partnerId).then((data) => {
+    setLoading(true);
+    try {
+      const data = await getPartnerStorageRecords(partnerId);
       setStorage(
         data.map((s) => ({
           id: s.id,
@@ -70,9 +74,16 @@ export function PartnerStorage() {
           partner_name: '',
         })),
       );
+    } catch (err) {
+      setStatusError(getErrorMessage(err, 'Не удалось загрузить записи хранения'));
+    } finally {
       setLoading(false);
-    });
+    }
   }, [partnerId]);
+
+  useEffect(() => {
+    loadStorage();
+  }, [loadStorage]);
 
   const filteredData = useMemo(() => {
     return storage.filter((s) => {
@@ -130,10 +141,14 @@ export function PartnerStorage() {
     return map[status] || '';
   };
 
-  const handleStatusChange = (id: string, newStatus: StorageItem['status']) => {
-    setStorage((prev) =>
-      prev.map((s) => (s.id === id ? { ...s, status: newStatus } : s))
-    );
+  const handleStatusChange = async (id: string, newStatus: StorageItem['status']) => {
+    setStatusError(null);
+    try {
+      await updateStorageStatus(id, newStatus);
+      await loadStorage();
+    } catch (err) {
+      setStatusError(getErrorMessage(err, 'Не удалось обновить статус хранения'));
+    }
   };
 
   if (loading) {

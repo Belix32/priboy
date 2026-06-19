@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useLocation, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import { getPostAuthPath } from '../../lib/authRedirect';
 import { Button } from '../../components/Button/Button';
 import { Logo } from '../../components/Logo/Logo';
 import styles from './Register.module.css';
@@ -27,6 +28,8 @@ interface FieldErrors {
 
 export function Register() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const [searchParams] = useSearchParams();
   const { register, isAuthenticated, user } = useAuth();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -57,6 +60,11 @@ export function Register() {
     return Object.keys(e).length === 0;
   };
 
+  const redirectOpts = {
+    from: (location.state as { from?: string })?.from,
+    redirect: searchParams.get('redirect'),
+  };
+
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     setServerError('');
@@ -65,28 +73,14 @@ export function Register() {
     const result = await register(name.trim(), email.trim().toLowerCase(), phone.trim(), password);
     setLoading(false);
     if (result.success) {
-      const role = result.role || 'user';
-      if (role === 'admin' || role === 'moderator') {
-        navigate('/admin');
-      } else if (role === 'partner') {
-        navigate('/partner');
-      } else {
-        navigate('/profile');
-      }
+      navigate(getPostAuthPath(result.role || 'user', redirectOpts), { replace: true });
     } else {
       setServerError(result.error || 'Ошибка регистрации');
     }
   };
 
   if (isAuthenticated) {
-    const role = user?.role || 'user';
-    if (role === 'admin' || role === 'moderator') {
-      navigate('/admin');
-    } else if (role === 'partner') {
-      navigate('/partner');
-    } else {
-      navigate('/profile');
-    }
+    navigate(getPostAuthPath(user?.role || 'user', redirectOpts), { replace: true });
     return null;
   }
 

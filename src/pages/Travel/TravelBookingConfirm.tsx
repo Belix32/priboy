@@ -1,7 +1,8 @@
 import { useState, useEffect, type ReactNode } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { Button } from '../../components/Button/Button';
-import { getTravelBookingById, confirmTravelBooking } from '../../lib/travel/api';
+import { getErrorMessage } from '../../lib/apiError';
+import { getTravelBookingById } from '../../lib/travel/api';
 import type { TravelBooking } from '../../lib/travel/types';
 import styles from './TravelBookingConfirm.module.css';
 import sharedStyles from './Travel.module.css';
@@ -49,7 +50,6 @@ export function TravelBookingConfirm() {
   const [booking, setBooking] = useState<TravelBooking | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [confirming, setConfirming] = useState(false);
 
   useEffect(() => {
     if (!bookingId) {
@@ -57,24 +57,18 @@ export function TravelBookingConfirm() {
       setLoading(false);
       return;
     }
-    getTravelBookingById(bookingId).then((found) => {
-      if (found) setBooking(found);
-      else setError('Бронирование не найдено');
-      setLoading(false);
-    });
+    getTravelBookingById(bookingId)
+      .then((found) => {
+        if (found) setBooking(found);
+        else setError('Бронирование не найдено');
+      })
+      .catch((err) => setError(getErrorMessage(err, 'Не удалось загрузить бронирование')))
+      .finally(() => setLoading(false));
   }, [bookingId]);
 
-  const handleConfirm = async () => {
+  const handleConfirm = () => {
     if (!booking) return;
-    setConfirming(true);
-    try {
-      await confirmTravelBooking(booking.id);
-      navigate(`/booking/success?id=${booking.id}`);
-    } catch {
-      setError('Не удалось подтвердить бронирование');
-    } finally {
-      setConfirming(false);
-    }
+    navigate(`/booking/success?id=${booking.id}`);
   };
 
   if (loading) {
@@ -209,7 +203,9 @@ export function TravelBookingConfirm() {
             <span>Итого к оплате</span>
             <span className={styles.priceTotalValue}>{booking.total_price?.toLocaleString('ru-RU')} ₽</span>
           </div>
-          <p className={styles.priceNote}>Оплата производится при получении автомобиля в офисе</p>
+          <p className={styles.priceNote}>
+            Оплата производится при получении автомобиля в офисе. Бронь будет подтверждена партнёром — после этого станет доступен QR-код.
+          </p>
         </section>
 
         {error && <p className={styles.errorMsg}>{error}</p>}
@@ -219,9 +215,8 @@ export function TravelBookingConfirm() {
             variant="primary"
             className={styles.confirmButton}
             onClick={handleConfirm}
-            disabled={confirming}
           >
-            {confirming ? 'Подтверждение...' : 'Подтвердить бронирование'}
+            Завершить оформление
           </Button>
           <Button variant="secondary" onClick={() => navigate(-1)}>Назад</Button>
         </div>

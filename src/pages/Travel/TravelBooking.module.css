@@ -449,3 +449,38 @@
     font-size: 20px;
   }
 }
+
+.promoSection {
+  margin: var(--spacing-md) 0;
+  padding: var(--spacing-md);
+  background: var(--bg-card);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-color);
+}
+
+.promoLabel {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.promoRow {
+  display: flex;
+  gap: 8px;
+}
+
+.promoInput {
+  flex: 1;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-color);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+}
+
+.promoMessage {
+  margin-top: 8px;
+  font-size: 13px;
+  color: var(--text-secondary);
+}

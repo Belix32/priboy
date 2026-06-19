@@ -4,7 +4,10 @@ import { useAuth } from '../../contexts/AuthContext';
 import { Button } from '../../components/Button/Button';
 import { Input } from '../../components/Input/Input';
 import { getCarById, getDestinationBySlug, createTravelBooking, calculateTravelPrice } from '../../lib/travel/api';
-import { STORAGE_PRICE_PER_DAY } from '../../lib/travel/seed';
+import { validatePromoCode } from '../../lib/travel/promos';
+import { getStoragePricePerDay } from '../../lib/travel/settings';
+import { getCurrentUserProfile, profileToUserCar } from '../../lib/travel/profileApi';
+import { getErrorMessage } from '../../lib/apiError';
 import type { PartnerCar } from '../../lib/travel/types';
 import styles from './TravelBooking.module.css';
 import sharedStyles from './Travel.module.css';
@@ -63,8 +66,16 @@ export function TravelBooking() {
 
   // Storage toggle
   const [storageEnabled, setStorageEnabled] = useState(true);
+  const [storagePricePerDay, setStoragePricePerDay] = useState(500);
+  const [promoCode, setPromoCode] = useState('');
+  const [promoDiscount, setPromoDiscount] = useState(0);
+  const [promoMessage, setPromoMessage] = useState('');
 
   const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    getStoragePricePerDay().then(setStoragePricePerDay);
+  }, []);
 
   // Load car from API
   useEffect(() => {
@@ -74,25 +85,34 @@ export function TravelBooking() {
       return;
     }
 
-    getCarById(carId).then((found) => {
-      if (found) setCar(found);
-      else setError('Автомобиль не найден');
-      setLoading(false);
-    });
+    getCarById(carId)
+      .then((found) => {
+        if (found) setCar(found);
+        else setError('Автомобиль не найден');
+      })
+      .catch((err) => setError(getErrorMessage(err, 'Не удалось загрузить автомобиль')))
+      .finally(() => setLoading(false));
   }, [carId]);
 
   // Load saved car from user profile
   useEffect(() => {
-    const saved = loadProfileCar();
-    if (saved && saved.brand && saved.model) {
-      setProfileCar(saved);
-    }
+    getCurrentUserProfile().then((profile) => {
+      const saved = profileToUserCar(profile);
+      if (saved?.brand && saved.model) {
+        setProfileCar({
+          brand: saved.brand,
+          model: saved.model,
+          color: saved.color || '',
+          license_plate: saved.license_plate || '',
+        });
+      }
+    });
   }, []);
 
   const priceBreakdown = useMemo(() => {
     if (!car || !startDate || !endDate) return null;
-    return calculateTravelPrice(car, startDate, endDate, storageEnabled, STORAGE_PRICE_PER_DAY);
-  }, [car, startDate, endDate, storageEnabled]);
+    return calculateTravelPrice(car, startDate, endDate, storageEnabled, storagePricePerDay, promoDiscount);
+  }, [car, startDate, endDate, storageEnabled, storagePricePerDay, promoDiscount]);
 
   const days = priceBreakdown?.totalRentalDays || 0;
   const rentTotal = priceBreakdown?.totalRentalPrice || 0;
@@ -128,6 +148,11 @@ export function TravelBooking() {
 
     if (!car) return;
 
+    if (!startDate || !endDate) {
+      setError('Укажите даты поездки');
+      return;
+    }
+
     // Validate plate if storage enabled
     if (storageEnabled) {
       if (!ownPlate || ownPlate.trim().length < 5) {
@@ -160,6 +185,8 @@ export function TravelBooking() {
           own_car_model: ownModel,
           own_car_color: ownColor,
           own_car_license_plate: ownPlate.toUpperCase(),
+          promo_code: promoDiscount > 0 ? promoCode.toUpperCase() : undefined,
+          discount_amount: promoDiscount > 0 ? promoDiscount : undefined,
         },
         storageEnabled ? { brand: ownBrand, model: ownModel, color: ownColor, license_plate: ownPlate.toUpperCase() } : undefined,
       );
@@ -400,8 +427,41 @@ export function TravelBooking() {
             </div>
             <div className={styles.storageInfo}>
               <div className={styles.storageTitle}>Оставить свою машину на хранение</div>
-              <div className={styles.storagePrice}>500 ₽ / сутки</div>
+              <div className={styles.storagePrice}>{storagePricePerDay.toLocaleString('ru-RU')} ₽ / сутки</div>
             </div>
+          </div>
+
+          <div className={styles.promoSection}>
+            <label className={styles.promoLabel}>Промокод</label>
+            <div className={styles.promoRow}>
+              <input
+                type="text"
+                className={styles.promoInput}
+                value={promoCode}
+                onChange={(e) => setPromoCode(e.target.value.toUpperCase())}
+                placeholder="PRIBOY2026"
+              />
+              <Button
+                type="button"
+                variant="secondary"
+                size="small"
+                onClick={async () => {
+                  if (!car || !startDate || !endDate) return;
+                  const base = calculateTravelPrice(car, startDate, endDate, storageEnabled, storagePricePerDay);
+                  const result = await validatePromoCode(promoCode, base.totalRentalPrice + base.totalStoragePrice);
+                  if (result.valid) {
+                    setPromoDiscount(result.discountAmount);
+                    setPromoMessage(`Скидка −${result.discountAmount.toLocaleString('ru-RU')} ₽`);
+                  } else {
+                    setPromoDiscount(0);
+                    setPromoMessage(result.message || 'Промокод недействителен');
+                  }
+                }}
+              >
+                Применить
+              </Button>
+            </div>
+            {promoMessage && <p className={styles.promoMessage}>{promoMessage}</p>}
           </div>
 
           {/* Price Breakdown */}
@@ -413,7 +473,7 @@ export function TravelBooking() {
             </div>
             {storageEnabled && (
               <div className={styles.priceRow}>
-                <span>Хранение: {days} {days === 1 ? 'день' : days < 5 ? 'дня' : 'дней'} × 500 ₽/день</span>
+                <span>Хранение: {days} {days === 1 ? 'день' : days < 5 ? 'дня' : 'дней'} × {storagePricePerDay.toLocaleString('ru-RU')} ₽/день</span>
                 <span className={styles.priceRowValue}>{storageTotal.toLocaleString('ru-RU')} ₽</span>
               </div>
             )}
