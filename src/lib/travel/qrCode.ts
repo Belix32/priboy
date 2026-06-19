@@ -1,3 +1,4 @@
+import QRCode from 'qrcode';
 import type { TravelBooking } from './types';
 
 export interface BookingQrClient {
@@ -6,72 +7,59 @@ export interface BookingQrClient {
   email?: string;
 }
 
-export interface BookingQrPayload {
-  v: 1;
-  booking_id: string;
-  client: BookingQrClient;
-  rental_car: {
-    brand: string;
-    model: string;
-    license_plate: string | null;
-    color: string | null;
-  };
-  storage: {
-    needed: boolean;
-    car: {
-      brand: string;
-      model: string;
-      color: string | null;
-      license_plate: string;
-    } | null;
-  };
-  destination: string | null;
-  period: {
-    start: string;
-    end: string;
-  };
+function formatQrDate(dateStr: string): string {
+  return new Date(dateStr).toLocaleDateString('ru-RU', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  });
 }
 
-export function buildBookingQrPayload(
+/**
+ * Human-readable QR text — displays correctly when scanned or hovered (iOS/macOS).
+ * Avoids custom URL schemes like PRIBOI: which trigger "данные не найдены".
+ */
+export function buildBookingQrText(
   booking: TravelBooking,
   client: BookingQrClient,
 ): string {
-  const payload: BookingQrPayload = {
-    v: 1,
-    booking_id: booking.id,
-    client: {
-      name: client.name || '—',
-      phone: client.phone || '—',
-      ...(client.email ? { email: client.email } : {}),
-    },
-    rental_car: {
-      brand: booking.car?.brand || '—',
-      model: booking.car?.model || '—',
-      license_plate: booking.car?.license_plate ?? null,
-      color: booking.car?.color ?? null,
-    },
-    storage: {
-      needed: booking.has_storage,
-      car:
-        booking.has_storage && booking.own_car_license_plate
-          ? {
-              brand: booking.own_car_brand || '—',
-              model: booking.own_car_model || '—',
-              color: booking.own_car_color ?? null,
-              license_plate: booking.own_car_license_plate,
-            }
-          : null,
-    },
-    destination: booking.destination?.name ?? null,
-    period: {
-      start: booking.start_date,
-      end: booking.end_date,
-    },
-  };
+  const rentalCar = booking.car
+    ? `${booking.car.brand} ${booking.car.model}`.trim()
+    : '—';
 
-  return `PRIBOI:${JSON.stringify(payload)}`;
+  const lines = [
+    'ПРИБОЙ — Бронирование',
+    `ID: ${booking.id}`,
+    `Клиент: ${client.name || '—'}${client.phone ? `, ${client.phone}` : ''}`,
+    `Аренда: ${rentalCar}`,
+  ];
+
+  if (booking.car?.license_plate) {
+    lines.push(`Госномер авто: ${booking.car.license_plate}`);
+  }
+  if (booking.car?.color) {
+    lines.push(`Цвет: ${booking.car.color}`);
+  }
+
+  if (booking.has_storage && booking.own_car_license_plate) {
+    const ownCar = [booking.own_car_brand, booking.own_car_model].filter(Boolean).join(' ');
+    lines.push(`Парковка: ${ownCar} (${booking.own_car_license_plate})`);
+  } else {
+    lines.push('Парковка: не требуется');
+  }
+
+  lines.push(`Направление: ${booking.destination?.name || '—'}`);
+  lines.push(`Даты: ${formatQrDate(booking.start_date)} — ${formatQrDate(booking.end_date)}`);
+  lines.push(`Сумма: ${booking.total_price.toLocaleString('ru-RU')} ₽`);
+
+  return lines.join('\n');
 }
 
-export function getBookingQrCodeUrl(data: string, size = 200): string {
-  return `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&data=${encodeURIComponent(data)}&bgcolor=ffffff&color=000000`;
+export async function generateBookingQrDataUrl(text: string, size = 240): Promise<string> {
+  return QRCode.toDataURL(text, {
+    width: size,
+    margin: 2,
+    color: { dark: '#000000', light: '#ffffff' },
+    errorCorrectionLevel: 'M',
+  });
 }

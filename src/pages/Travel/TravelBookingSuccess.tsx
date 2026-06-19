@@ -3,7 +3,7 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import { Button } from '../../components/Button/Button';
 import { useAuth } from '../../contexts/AuthContext';
 import { getTravelBookingById } from '../../lib/travel/api';
-import { buildBookingQrPayload, getBookingQrCodeUrl } from '../../lib/travel/qrCode';
+import { buildBookingQrText, generateBookingQrDataUrl } from '../../lib/travel/qrCode';
 import type { TravelBooking } from '../../lib/travel/types';
 import styles from './TravelBookingSuccess.module.css';
 import sharedStyles from './Travel.module.css';
@@ -42,12 +42,20 @@ export function TravelBookingSuccess() {
   useEffect(() => {
     if (!booking) return;
 
-    const qrData = buildBookingQrPayload(booking, {
+    let cancelled = false;
+    const qrText = buildBookingQrText(booking, {
       name: user?.name || '',
       phone: user?.phone || '',
       email: user?.email,
     });
-    setQrCodeUrl(getBookingQrCodeUrl(qrData));
+
+    generateBookingQrDataUrl(qrText).then((url) => {
+      if (!cancelled) setQrCodeUrl(url);
+    });
+
+    return () => {
+      cancelled = true;
+    };
   }, [booking, user]);
 
   if (loading) {
