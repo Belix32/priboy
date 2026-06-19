@@ -199,7 +199,7 @@ export function AdminUsers() {
           </tbody>
         </table>
         {filteredUsers.length === 0 && (
-          <p style={{ padding: 24, textAlign: 'center', color: '#6b7280' }}>
+          <p className="admin-empty" style={{ padding: 24 }}>
             Пользователи не найдены. Убедитесь, что выполнен SQL из <code>003_admin_promos.sql</code>.
           </p>
         )}

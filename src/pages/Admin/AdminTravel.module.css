@@ -236,7 +236,7 @@
   font-size: 0.8rem;
   font-weight: 500;
   cursor: pointer;
-  background: var(--bg-card, #ffffff);
+  background: var(--bg-elevated);
   color: var(--text-primary, #1a1a2e);
   transition: all 0.2s;
   white-space: nowrap;
@@ -292,7 +292,7 @@
   border-radius: 8px;
   font-size: 0.9rem;
   color: var(--text-primary, #1a1a2e);
-  background: var(--bg-card, #ffffff);
+  background: var(--bg-elevated);
   transition: border-color 0.2s, box-shadow 0.2s;
 }
 
@@ -329,7 +329,7 @@
   border-radius: 6px;
   font-size: 0.8rem;
   color: var(--text-primary, #1a1a2e);
-  background: var(--bg-card, #ffffff);
+  background: var(--bg-elevated);
   cursor: pointer;
 }
 
