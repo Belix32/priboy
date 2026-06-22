@@ -107,9 +107,10 @@ export interface PartnerCar {
 export interface TravelBooking {
   id: string;
   user_id: string;
+  booking_type?: 'rental' | 'storage_only';
   destination_id: string;
   partner_id: string;
-  car_id: string;
+  car_id: string | null;
   location_id: string | null;
   start_date: string;
   end_date: string;
@@ -177,6 +178,30 @@ export interface TravelSearchParams {
   max_price?: number;
   transmission?: 'manual' | 'automatic';
   seats?: number;
+}
+
+export interface StandaloneStorageForm {
+  destination_id: string;
+  partner_id: string;
+  location_id: string;
+  start_date: string;
+  end_date: string;
+  own_car_brand: string;
+  own_car_model: string;
+  own_car_color?: string;
+  own_car_license_plate: string;
+  notes?: string;
+  promo_code?: string;
+}
+
+export interface PartnerReview {
+  id: string;
+  booking_id: string;
+  user_id: string;
+  partner_id: string;
+  rating: number;
+  comment: string | null;
+  created_at: string;
 }
 
 export interface TravelBookingForm {

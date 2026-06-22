@@ -7,6 +7,7 @@ import { getTravelBookingById } from '../../lib/travel/api';
 import { createYooKassaPayment } from '../../lib/travel/payments';
 import { getErrorMessage } from '../../lib/apiError';
 import { buildBookingQrText, generateBookingQrDataUrl } from '../../lib/travel/qrCode';
+import { saveOfflineQr, loadOfflineQr } from '../../lib/travel/offlineQr';
 import type { TravelBooking } from '../../lib/travel/types';
 import styles from './TravelBookingSuccess.module.css';
 import sharedStyles from './Travel.module.css';
@@ -28,6 +29,7 @@ export function TravelBookingSuccess() {
   const { user } = useAuth();
   const bookingId = searchParams.get('id');
   const awaitingPayment = searchParams.get('awaiting_payment') === '1';
+  const isStorageFlow = searchParams.get('type') === 'storage';
 
   const [booking, setBooking] = useState<TravelBooking | null>(null);
   const [loading, setLoading] = useState(true);
@@ -110,7 +112,10 @@ export function TravelBookingSuccess() {
 
     generateBookingQrDataUrl(qrText)
       .then((url) => {
-        if (!cancelled) setQrCodeUrl(url);
+        if (!cancelled) {
+          setQrCodeUrl(url);
+          saveOfflineQr({ bookingId: booking.id, qrText, qrDataUrl: url });
+        }
       })
       .catch(() => {
         if (!cancelled) setError('Не удалось сгенерировать QR-код');
@@ -120,6 +125,14 @@ export function TravelBookingSuccess() {
       cancelled = true;
     };
   }, [booking, user]);
+
+  useEffect(() => {
+    if (!bookingId || qrCodeUrl) return;
+    const cached = loadOfflineQr();
+    if (cached?.bookingId === bookingId && cached.qrDataUrl) {
+      setQrCodeUrl(cached.qrDataUrl);
+    }
+  }, [bookingId, qrCodeUrl]);
 
   const handlePayOnline = async () => {
     if (!booking || !isSupabaseConfigured()) return;
@@ -160,7 +173,12 @@ export function TravelBookingSuccess() {
     );
   }
 
-  const carName = booking.car ? `${booking.car.brand} ${booking.car.model}` : 'Автомобиль';
+  const isStorageOnly = booking.booking_type === 'storage_only' || isStorageFlow;
+  const carName = isStorageOnly
+    ? booking.location?.name || 'Хранение автомобиля'
+    : booking.car
+      ? `${booking.car.brand} ${booking.car.model}`
+      : 'Автомобиль';
   const isPending = booking.status === 'pending';
   const isConfirmed = booking.status === 'confirmed' || booking.status === 'active';
 
@@ -169,14 +187,24 @@ export function TravelBookingSuccess() {
       <div className={styles.container}>
         <div className={styles.successIcon}>{isPending ? '⏳' : '✓'}</div>
         <h1 className={styles.title}>
-          {isPending ? 'Бронирование оформлено' : 'Бронирование подтверждено!'}
+          {isPending
+            ? isStorageOnly
+              ? 'Заявка на хранение оформлена'
+              : 'Бронирование оформлено'
+            : isStorageOnly
+              ? 'Хранение подтверждено!'
+              : 'Бронирование подтверждено!'}
         </h1>
         <p className={styles.subtitle}>
           {polling
             ? 'Проверяем статус оплаты…'
             : isPending
-              ? 'Ожидайте подтверждения партнёра. После подтверждения или оплаты станет доступен QR-код.'
-              : 'Покажите QR-код при получении автомобиля'}
+              ? isStorageOnly
+                ? 'Ожидайте подтверждения партнёра. После подтверждения или оплаты станет доступен QR-код для заезда на парковку.'
+                : 'Ожидайте подтверждения партнёра. После подтверждения или оплаты станет доступен QR-код.'
+              : isStorageOnly
+                ? 'Покажите QR-код при заезде на парковку'
+                : 'Покажите QR-код при получении автомобиля'}
         </p>
 
         {isConfirmed && qrCodeUrl && (
@@ -189,13 +217,13 @@ export function TravelBookingSuccess() {
           <p><strong>{carName}</strong></p>
           <p>{booking.destination?.name} · {formatDate(booking.start_date)} — {formatDate(booking.end_date)}</p>
           {user?.name && <p>Клиент: {user.name}{user.phone ? ` · ${user.phone}` : ''}</p>}
-          {booking.has_storage && booking.own_car_license_plate ? (
+          {isStorageOnly || (booking.has_storage && booking.own_car_license_plate) ? (
             <p className={styles.storageInfo}>
-              Парковка: {booking.own_car_brand} {booking.own_car_model}
+              {isStorageOnly ? 'Авто на хранении' : 'Парковка'}: {booking.own_car_brand} {booking.own_car_model}
               {booking.own_car_color ? `, ${booking.own_car_color}` : ''} ({booking.own_car_license_plate})
             </p>
           ) : (
-            <p className={styles.storageInfo}>Парковка не требуется</p>
+            !isStorageOnly && <p className={styles.storageInfo}>Парковка не требуется</p>
           )}
           <p className={styles.total}>Итого: {booking.total_price.toLocaleString('ru-RU')} ₽</p>
           <p className={styles.storageInfo}>
@@ -208,7 +236,11 @@ export function TravelBookingSuccess() {
             <Button variant="primary" onClick={handlePayOnline} disabled={payLoading || polling}>
               {payLoading ? 'Переход к оплате...' : 'Оплатить онлайн (ЮKassa)'}
             </Button>
-            <p className={styles.payNote}>Или оплатите при получении авто в офисе партнёра</p>
+            <p className={styles.payNote}>
+              {isStorageOnly
+                ? 'Или оплатите при заезде на парковку'
+                : 'Или оплатите при получении авто в офисе партнёра'}
+            </p>
             {payError && <p className={styles.payError}>{payError}</p>}
           </div>
         )}

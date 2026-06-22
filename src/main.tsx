@@ -8,10 +8,13 @@ import { seedDemoDataIfNeeded } from './lib/travel/seed'
 import { isSupabaseConfigured } from './lib/supabase'
 import App from './App'
 import './styles/globals.css'
+import { registerServiceWorker } from './lib/pwa'
 
 if (!isSupabaseConfigured()) {
   seedDemoDataIfNeeded();
 }
+
+registerServiceWorker();
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

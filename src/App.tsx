@@ -20,6 +20,8 @@ const HelpPage = lazy(() => import('./pages/Travel/HelpPage').then(m => ({ defau
 const GuidePage = lazy(() => import('./pages/Travel/GuidePage').then(m => ({ default: m.GuidePage })));
 const AboutPage = lazy(() => import('./pages/Travel/AboutPage').then(m => ({ default: m.AboutPage })));
 const TravelMap = lazy(() => import('./pages/Travel/TravelMap').then(m => ({ default: m.TravelMap })));
+const StandaloneStorageBooking = lazy(() => import('./pages/Travel/StandaloneStorageBooking').then(m => ({ default: m.StandaloneStorageBooking })));
+const NotFound = lazy(() => import('./pages/Travel/NotFound').then(m => ({ default: m.NotFound })));
 
 const AdminTravelDashboard = lazy(() => import('./pages/Admin/AdminTravelDashboard').then(m => ({ default: m.AdminTravelDashboard })));
 const AdminTravelDestinations = lazy(() => import('./pages/Admin/AdminTravelDestinations').then(m => ({ default: m.AdminTravelDestinations })));
@@ -76,6 +78,7 @@ export default function App() {
             <Route path="/travel" element={<TravelHome />} />
             <Route path="/search" element={<TravelSearch />} />
             <Route path="/travel/search" element={<TravelSearch />} />
+            <Route path="/storage/book/:locationId" element={<ProtectedAuth><StandaloneStorageBooking /></ProtectedAuth>} />
             <Route path="/booking/:carId" element={<ProtectedAuth><TravelBooking /></ProtectedAuth>} />
             <Route path="/travel/booking/:carId" element={<ProtectedAuth><TravelBooking /></ProtectedAuth>} />
             <Route path="/booking/confirm" element={<ProtectedAuth><TravelBookingConfirm /></ProtectedAuth>} />
@@ -113,6 +116,8 @@ export default function App() {
             <Route path="/partner/bookings" element={<ProtectedPartner><PartnerBookings /></ProtectedPartner>} />
             <Route path="/partner/storage" element={<ProtectedPartner><PartnerStorage /></ProtectedPartner>} />
             <Route path="/partner/scan" element={<ProtectedPartner><PartnerScan /></ProtectedPartner>} />
+
+            <Route path="*" element={<NotFound />} />
           </Routes>
         </Suspense>
       </main>

@@ -8,7 +8,8 @@ import { createYooKassaPayment } from '../../lib/travel/payments';
 import { getSupabaseClient, isSupabaseConfigured } from '../../lib/supabase';
 import { getCurrentUserProfile, updateUserProfile, profileToUserCar } from '../../lib/travel/profileApi';
 import { Button } from '../../components/Button/Button';
-import type { TravelBooking } from '../../lib/travel/types';
+import type { TravelBooking, PartnerReview } from '../../lib/travel/types';
+import { getReviewForBooking, createPartnerReview } from '../../lib/travel/reviews';
 import styles from './UserProfile.module.css';
 
 interface OwnCarInfo {
@@ -81,6 +82,86 @@ function loadOwnCar(): OwnCarInfo | null {
 
 function saveOwnCar(car: OwnCarInfo): void {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(car));
+}
+
+function TripReview({ trip }: { trip: TravelBooking }) {
+  const [rating, setRating] = useState(0);
+  const [comment, setComment] = useState('');
+  const [existing, setExisting] = useState<PartnerReview | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [reviewError, setReviewError] = useState<string | null>(null);
+
+  useEffect(() => {
+    getReviewForBooking(trip.id)
+      .then(setExisting)
+      .finally(() => setLoading(false));
+  }, [trip.id]);
+
+  if (trip.status !== 'completed' || !trip.partner_id) return null;
+  if (loading) return <p className={styles.reviewLoading}>Загрузка отзыва…</p>;
+
+  if (existing) {
+    return (
+      <div className={styles.reviewSection}>
+        <p className={styles.reviewTitle}>Ваш отзыв</p>
+        <p className={styles.reviewStars}>{'★'.repeat(existing.rating)}{'☆'.repeat(5 - existing.rating)}</p>
+        {existing.comment && <p className={styles.reviewText}>{existing.comment}</p>}
+      </div>
+    );
+  }
+
+  const handleSubmit = async () => {
+    if (rating < 1) {
+      setReviewError('Выберите оценку');
+      return;
+    }
+    setSubmitting(true);
+    setReviewError(null);
+    try {
+      const review = await createPartnerReview({
+        bookingId: trip.id,
+        partnerId: trip.partner_id!,
+        rating,
+        comment: comment.trim() || undefined,
+      });
+      setExisting(review);
+    } catch (err) {
+      setReviewError(getErrorMessage(err, 'Не удалось сохранить отзыв'));
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div className={styles.reviewSection}>
+      <p className={styles.reviewTitle}>Оцените поездку</p>
+      <div className={styles.starRow}>
+        {[1, 2, 3, 4, 5].map((n) => (
+          <button
+            key={n}
+            type="button"
+            className={`${styles.starBtn} ${n <= rating ? styles.starBtnActive : ''}`}
+            onClick={() => setRating(n)}
+            aria-label={`${n} звёзд`}
+          >
+            ★
+          </button>
+        ))}
+      </div>
+      <textarea
+        className={styles.reviewComment}
+        value={comment}
+        onChange={(e) => setComment(e.target.value)}
+        placeholder="Комментарий (необязательно)"
+        rows={2}
+      />
+      {reviewError && <p className={styles.cancelError}>{reviewError}</p>}
+      <Button variant="secondary" size="small" onClick={handleSubmit} disabled={submitting}>
+        {submitting ? 'Отправка…' : 'Оставить отзыв'}
+      </Button>
+    </div>
+  );
 }
 
 export function UserProfile() {
@@ -235,8 +316,13 @@ export function UserProfile() {
   const displayTrips = activeTab === 'active' ? activeTrips : historyTrips;
 
   const renderTrip = (trip: TravelBooking) => {
+    const isStorageOnly = trip.booking_type === 'storage_only';
     const destName = trip.destination?.name || 'Курорт';
-    const carName = trip.car ? `${trip.car.brand} ${trip.car.model}` : 'Автомобиль';
+    const carName = isStorageOnly
+      ? 'Только хранение'
+      : trip.car
+        ? `${trip.car.brand} ${trip.car.model}`
+        : 'Автомобиль';
     const partnerName = trip.partner?.name || 'Партнёр';
 
     return (
@@ -256,9 +342,15 @@ export function UserProfile() {
 
         <div className={styles.tripDetails}>
           <div className={styles.tripDetailRow}>
-            <span>Автомобиль</span>
+            <span>{isStorageOnly ? 'Услуга' : 'Автомобиль'}</span>
             <span className={styles.tripDetailValue}>{carName}</span>
           </div>
+          {isStorageOnly && trip.location?.name && (
+            <div className={styles.tripDetailRow}>
+              <span>Парковка</span>
+              <span className={styles.tripDetailValue}>{trip.location.name}</span>
+            </div>
+          )}
           <div className={styles.tripDetailRow}>
             <span>Партнёр</span>
             <span className={styles.tripDetailValue}>{partnerName}</span>
@@ -269,7 +361,7 @@ export function UserProfile() {
               {formatDateShort(trip.start_date)} — {formatDateShort(trip.end_date)}
             </span>
           </div>
-          {trip.has_storage && trip.own_car_license_plate && (
+          {(trip.has_storage || isStorageOnly) && trip.own_car_license_plate && (
             <div className={styles.tripDetailRow}>
               <span>Ваше авто на хранении</span>
               <span className={styles.tripDetailValue}>
@@ -291,6 +383,8 @@ export function UserProfile() {
           </div>
         </div>
 
+        {trip.status === 'completed' && <TripReview trip={trip} />}
+
         <div className={styles.tripActions}>
           {trip.payment_status === 'pending' &&
             trip.status !== 'cancelled' &&
@@ -308,7 +402,11 @@ export function UserProfile() {
             <Button
               variant="primary"
               size="small"
-              onClick={() => navigate(`/booking/success?id=${trip.id}`)}
+              onClick={() =>
+                navigate(
+                  `/booking/success?id=${trip.id}${isStorageOnly ? '&type=storage' : ''}`,
+                )
+              }
             >
               Открыть QR-код
             </Button>

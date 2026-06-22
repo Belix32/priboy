@@ -3,8 +3,9 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '../../components/Button/Button';
 import { useDestinations } from '../../hooks/useDestinations';
 import { useCars } from '../../hooks/useCars';
-import { getRentalDayLimits } from '../../lib/travel/settings';
-import type { PartnerCar } from '../../lib/travel/types';
+import { getRentalDayLimits, getStoragePricePerDay } from '../../lib/travel/settings';
+import { searchStorageLocations } from '../../lib/travel/storageBooking';
+import type { PartnerCar, PartnerLocation } from '../../lib/travel/types';
 import styles from './TravelSearch.module.css';
 import sharedStyles from './Travel.module.css';
 
@@ -24,10 +25,15 @@ export function TravelSearch() {
   const [seats, setSeats] = useState('');
   const [hasSearched, setHasSearched] = useState(false);
   const [rentalLimits, setRentalLimits] = useState({ min: 1, max: 30 });
+  const isStorageMode = mode === 'storage';
+  const [storageLocations, setStorageLocations] = useState<PartnerLocation[]>([]);
+  const [storagePricePerDay, setStoragePricePerDay] = useState(500);
+  const [storageLoading, setStorageLoading] = useState(false);
 
   useEffect(() => {
     getRentalDayLimits().then(setRentalLimits);
-  }, []);
+    if (isStorageMode) getStoragePricePerDay().then(setStoragePricePerDay);
+  }, [isStorageMode]);
 
   useEffect(() => {
     const today = new Date();
@@ -40,6 +46,16 @@ export function TravelSearch() {
   const handleSearch = useCallback(async () => {
     if (!selectedDestination || !startDate || !endDate) return;
     setHasSearched(true);
+    if (isStorageMode) {
+      setStorageLoading(true);
+      try {
+        const locations = await searchStorageLocations(selectedDestination);
+        setStorageLocations(locations);
+      } finally {
+        setStorageLoading(false);
+      }
+      return;
+    }
     await search({
       destination_slug: selectedDestination,
       start_date: startDate,
@@ -47,7 +63,7 @@ export function TravelSearch() {
       transmission: transmission ? (transmission as 'manual' | 'automatic') : undefined,
       seats: seats ? parseInt(seats, 10) : undefined,
     });
-  }, [selectedDestination, startDate, endDate, transmission, seats, search]);
+  }, [selectedDestination, startDate, endDate, transmission, seats, search, isStorageMode]);
 
   useEffect(() => {
     if (initialDestination && startDate && endDate) {
@@ -61,10 +77,17 @@ export function TravelSearch() {
 
   const transmissionLabel = (t: string) => (t === 'automatic' ? 'Автомат' : 'Механика');
 
-  const pageTitle = mode === 'storage' ? 'Хранение авто' : 'Поиск автомобиля';
-  const pageSubtitle = mode === 'storage'
-    ? 'Арендуйте авто на курорте и оставьте своё на хранение — дополнительная услуга при бронировании'
+  const pageTitle = isStorageMode ? 'Хранение авто' : 'Поиск автомобиля';
+  const pageSubtitle = isStorageMode
+    ? 'Выберите парковку партнёра — оставьте свой автомобиль без аренды'
     : 'Найдите подходящий автомобиль на курорте';
+
+  const storageDays = Math.max(
+    1,
+    startDate && endDate
+      ? Math.ceil((new Date(endDate).getTime() - new Date(startDate).getTime()) / (1000 * 60 * 60 * 24))
+      : 1,
+  );
 
   return (
     <div className={styles.page}>
@@ -99,7 +122,9 @@ export function TravelSearch() {
               <label className={styles.filterLabel}>Дата выезда</label>
               <input type="date" className={styles.filterInput} value={endDate} onChange={(e) => setEndDate(e.target.value)} min={startDate} />
               <p className={styles.filterHint}>
-                Срок аренды: от {rentalLimits.min} до {rentalLimits.max} дней
+                {isStorageMode
+                  ? `Срок хранения: от ${rentalLimits.min} до ${rentalLimits.max} дней`
+                  : `Срок аренды: от ${rentalLimits.min} до ${rentalLimits.max} дней`}
               </p>
             </div>
             {mode === 'rental' && (
@@ -126,7 +151,7 @@ export function TravelSearch() {
             <div className={styles.filterGroup}>
               <label className={styles.filterLabel}>&nbsp;</label>
               <Button variant="primary" className={styles.searchBtn} onClick={handleSearch} disabled={!selectedDestination}>
-                {mode === 'storage' ? 'Найти авто с хранением' : 'Найти'}
+                {isStorageMode ? 'Найти парковки' : 'Найти'}
               </Button>
             </div>
           </div>
@@ -142,17 +167,75 @@ export function TravelSearch() {
             </Button>
           </div>
         )}
-        {loading || destLoading ? (
+        {loading || destLoading || storageLoading ? (
           <div className={sharedStyles.loading}>
             <div className={sharedStyles.spinner} />
             <p>Поиск...</p>
           </div>
-        ) : hasSearched && cars.length === 0 && !searchError ? (
+        ) : hasSearched && isStorageMode && storageLocations.length === 0 && !searchError ? (
+          <div className={sharedStyles.emptyState}>
+            <h2 className={styles.emptyTitle}>Нет парковок в этом направлении</h2>
+            <p className={styles.emptyText}>Попробуйте другое направление или свяжитесь с поддержкой</p>
+          </div>
+        ) : hasSearched && !isStorageMode && cars.length === 0 && !searchError ? (
           <div className={sharedStyles.emptyState}>
             <h2 className={styles.emptyTitle}>Нет подходящих автомобилей</h2>
             <p className={styles.emptyText}>Попробуйте изменить параметры поиска</p>
           </div>
-        ) : hasSearched ? (
+        ) : hasSearched && isStorageMode ? (
+          <>
+            <div className={styles.resultsHeader}>
+              <div className={styles.resultsCount}>
+                {storageLocations.length} парковок в {getDestinationName(selectedDestination)}
+              </div>
+              <button type="button" className={styles.showMapBtn} onClick={() => navigate('/map')}>
+                Показать на карте
+              </button>
+            </div>
+            <div className={styles.resultsGrid}>
+              {storageLocations.map((loc) => {
+                const days = storageDays;
+                const estimate = days * storagePricePerDay;
+                return (
+                  <div key={loc.id} className={styles.carCard}>
+                    <div className={styles.carInfo}>
+                      <div className={styles.carHeader}>
+                        <h3 className={styles.carName}>{loc.name}</h3>
+                      </div>
+                      <p className={styles.carSpec}>{loc.address}</p>
+                      {loc.partner && (
+                        <div className={styles.carPartner}>
+                          {loc.partner.name}
+                          {loc.partner.rating > 0 && (
+                            <span className={styles.partnerRating}>★ {loc.partner.rating}</span>
+                          )}
+                        </div>
+                      )}
+                      <div className={styles.carFooter}>
+                        <div className={styles.carPrice}>
+                          <span className={styles.carPriceValue}>от {estimate.toLocaleString('ru-RU')} ₽</span>
+                          <span className={styles.carPriceLabel}>
+                            {days} дн. × {storagePricePerDay.toLocaleString('ru-RU')} ₽
+                          </span>
+                        </div>
+                        <Button
+                          variant="primary"
+                          size="small"
+                          onClick={() => {
+                            const params = new URLSearchParams({ start: startDate, end: endDate });
+                            navigate(`/storage/book/${loc.id}?${params.toString()}`);
+                          }}
+                        >
+                          Забронировать
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </>
+        ) : hasSearched && !isStorageMode ? (
           <>
             <div className={styles.resultsHeader}>
               <div className={styles.resultsCount}>
@@ -198,12 +281,11 @@ export function TravelSearch() {
                             start: startDate,
                             end: endDate,
                             destination: selectedDestination,
-                            mode,
                           });
                           navigate(`/booking/${car.id}?${params.toString()}`);
                         }}
                       >
-                        {mode === 'storage' ? 'Забронировать с хранением' : 'Забронировать'}
+                        Забронировать
                       </Button>
                     </div>
                   </div>
