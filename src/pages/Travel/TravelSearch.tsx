@@ -113,7 +113,7 @@ export function TravelSearch() {
             ))}
           </div>
 
-          <div className={styles.filterGrid}>
+          <div className={`${styles.filterGrid} ${isStorageMode ? styles.filterGridStorage : ''}`}>
             <div className={styles.filterGroup}>
               <label className={styles.filterLabel}>Дата заезда</label>
               <input type="date" className={styles.filterInput} value={startDate} onChange={(e) => setStartDate(e.target.value)} min={new Date().toISOString().split('T')[0]} />
@@ -121,11 +121,6 @@ export function TravelSearch() {
             <div className={styles.filterGroup}>
               <label className={styles.filterLabel}>Дата выезда</label>
               <input type="date" className={styles.filterInput} value={endDate} onChange={(e) => setEndDate(e.target.value)} min={startDate} />
-              <p className={styles.filterHint}>
-                {isStorageMode
-                  ? `Срок хранения: от ${rentalLimits.min} до ${rentalLimits.max} дней`
-                  : `Срок аренды: от ${rentalLimits.min} до ${rentalLimits.max} дней`}
-              </p>
             </div>
             {mode === 'rental' && (
               <>
@@ -148,12 +143,17 @@ export function TravelSearch() {
                 </div>
               </>
             )}
-            <div className={styles.filterGroup}>
+            <div className={styles.filterGroup} style={{ alignSelf: 'end' }}>
               <label className={styles.filterLabel}>&nbsp;</label>
               <Button variant="primary" className={styles.searchBtn} onClick={handleSearch} disabled={!selectedDestination}>
                 {isStorageMode ? 'Найти парковки' : 'Найти'}
               </Button>
             </div>
+            <p className={styles.filterHintFull}>
+              {isStorageMode
+                ? `Срок хранения: от ${rentalLimits.min} до ${rentalLimits.max} дней`
+                : `Срок аренды: от ${rentalLimits.min} до ${rentalLimits.max} дней`}
+            </p>
           </div>
         </div>
       </div>

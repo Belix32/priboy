@@ -14,6 +14,7 @@ import {
   deleteCar,
 } from '../../lib/travel/api';
 import { uploadCarPhoto, validateCarPhotoFile } from '../../lib/travel/carPhotos';
+import { getErrorMessage } from '../../lib/apiError';
 import type { PartnerCar, RentalPartner, PartnerLocation } from '../../lib/travel/types';
 
 // Mock partners for partner_id select
@@ -90,6 +91,8 @@ export function AdminTravelCars() {
   const [formData, setFormData] = useState<CarFormData>(initialFormData);
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [photoError, setPhotoError] = useState<string | null>(null);
+  const [formError, setFormError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
 
   const [partners, setPartners] = useState<RentalPartner[]>([]);
   const [locations, setLocations] = useState<PartnerLocation[]>([]);
@@ -164,32 +167,42 @@ export function AdminTravelCars() {
   };
 
   const handleAddItem = async () => {
-    const created = await createCar({
-      partner_id: formData.partner_id,
-      location_id: formData.location_id || null,
-      brand: formData.brand,
-      model: formData.model,
-      year: formData.year ? Number(formData.year) : null,
-      color: formData.color || null,
-      license_plate: formData.license_plate || null,
-      transmission: formData.transmission,
-      fuel_type: formData.fuel_type,
-      seats: formData.seats,
-      price_per_day: formData.price_per_day,
-      deposit: formData.deposit,
-      image: formData.image || null,
-      description: formData.description || null,
-      is_available: formData.is_available,
-      is_active: formData.is_active,
-    });
-    if (created) {
+    if (photoFile) {
+      const validation = validateCarPhotoFile(photoFile);
+      if (validation) {
+        setPhotoError(validation);
+        return;
+      }
+    }
+
+    setSaving(true);
+    setFormError(null);
+    setPhotoError(null);
+    try {
+      const created = await createCar({
+        partner_id: formData.partner_id,
+        location_id: formData.location_id || null,
+        brand: formData.brand,
+        model: formData.model,
+        year: formData.year ? Number(formData.year) : null,
+        color: formData.color || null,
+        license_plate: formData.license_plate || null,
+        transmission: formData.transmission,
+        fuel_type: formData.fuel_type,
+        seats: formData.seats,
+        price_per_day: formData.price_per_day,
+        deposit: formData.deposit,
+        image: formData.image || null,
+        description: formData.description || null,
+        is_available: formData.is_available,
+        is_active: formData.is_active,
+      });
+      if (!created) {
+        throw new Error('Не удалось создать автомобиль');
+      }
+
       let saved = created;
       if (photoFile) {
-        const validation = validateCarPhotoFile(photoFile);
-        if (validation) {
-          setPhotoError(validation);
-          return;
-        }
         const imageUrl = await uploadCarPhoto(photoFile, formData.partner_id, created.id);
         await updateCar(created.id, { image: imageUrl });
         saved = { ...created, image: imageUrl };
@@ -199,6 +212,16 @@ export function AdminTravelCars() {
       setFormData(initialFormData);
       setPhotoFile(null);
       setPhotoError(null);
+      setFormError(null);
+    } catch (err) {
+      const message = getErrorMessage(err, 'Не удалось добавить автомобиль');
+      setFormError(
+        message.includes('row-level security') || message.includes('RLS')
+          ? `${message}. Проверьте роль admin в profiles и миграции 002/007 в Supabase.`
+          : message,
+      );
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -730,9 +753,21 @@ export function AdminTravelCars() {
           icon="➕"
           size="full"
           footer={
-            <div style={{ display: 'flex', gap: 12 }}>
-              {ModalButtons.cancel(() => setAddModalOpen(false))}
-              {ModalButtons.add(handleAddItem, !formData.partner_id || !formData.brand || !formData.model || !formData.price_per_day)}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12, width: '100%' }}>
+              {formError && (
+                <p style={{ margin: 0, color: '#dc2626', fontSize: 14 }}>{formError}</p>
+              )}
+              <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
+                {ModalButtons.cancel(() => {
+                  setAddModalOpen(false);
+                  setFormError(null);
+                })}
+                {ModalButtons.add(
+                  handleAddItem,
+                  saving || !formData.partner_id || !formData.brand || !formData.model || !formData.price_per_day,
+                  saving ? 'Сохранение...' : 'Добавить',
+                )}
+              </div>
             </div>
           }
         >

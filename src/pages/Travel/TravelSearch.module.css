@@ -47,7 +47,18 @@
   display: grid;
   grid-template-columns: 1fr 1fr 1fr auto;
   gap: var(--spacing-md);
-  align-items: end;
+  align-items: start;
+}
+
+.filterGridStorage {
+  grid-template-columns: 1fr 1fr auto;
+}
+
+.filterHintFull {
+  grid-column: 1 / -1;
+  margin: -4px 0 0;
+  font-size: var(--font-size-caption);
+  color: var(--text-secondary);
 }
 
 .filterGroup {

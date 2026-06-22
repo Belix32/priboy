@@ -8,6 +8,7 @@ import {
   updatePartnerCarAvailability,
 } from '../../lib/travel/api';
 import { uploadCarPhoto, validateCarPhotoFile } from '../../lib/travel/carPhotos';
+import { getErrorMessage } from '../../lib/apiError';
 import type { PartnerCar } from '../../lib/travel/types';
 import { PartnerLayout } from './PartnerLayout';
 import styles from './Partner.module.css';
@@ -70,6 +71,8 @@ export function PartnerCars() {
   const [formData, setFormData] = useState<CarFormData>(emptyForm);
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [photoError, setPhotoError] = useState<string | null>(null);
+  const [formError, setFormError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (!partnerId) {
@@ -120,7 +123,10 @@ export function PartnerCars() {
   };
 
   const handleAddItem = async () => {
-    if (!partnerId) return;
+    if (!partnerId) {
+      setFormError('Профиль партнёра не привязан. Обратитесь к администратору.');
+      return;
+    }
     if (photoFile) {
       const validation = validateCarPhotoFile(photoFile);
       if (validation) {
@@ -128,23 +134,30 @@ export function PartnerCars() {
         return;
       }
     }
+
+    setSaving(true);
+    setFormError(null);
     setPhotoError(null);
-    const created = await createCar({
-      partner_id: partnerId,
-      brand: formData.brand,
-      model: formData.model,
-      year: Number(formData.year) || new Date().getFullYear(),
-      color: formData.color || null,
-      transmission: formData.transmission,
-      fuel_type: formData.fuel_type,
-      seats: formData.seats,
-      price_per_day: formData.price_per_day,
-      deposit: formData.deposit,
-      description: formData.description || null,
-      is_available: formData.is_available,
-      is_active: true,
-    });
-    if (created) {
+    try {
+      const created = await createCar({
+        partner_id: partnerId,
+        brand: formData.brand,
+        model: formData.model,
+        year: Number(formData.year) || new Date().getFullYear(),
+        color: formData.color || null,
+        transmission: formData.transmission,
+        fuel_type: formData.fuel_type,
+        seats: formData.seats,
+        price_per_day: formData.price_per_day,
+        deposit: formData.deposit,
+        description: formData.description || null,
+        is_available: formData.is_available,
+        is_active: true,
+      });
+      if (!created) {
+        throw new Error('Не удалось создать автомобиль');
+      }
+
       let saved = created;
       if (photoFile) {
         const imageUrl = await uploadCarPhoto(photoFile, partnerId, created.id);
@@ -155,6 +168,16 @@ export function PartnerCars() {
       setAddModalOpen(false);
       setFormData(emptyForm);
       setPhotoFile(null);
+      setFormError(null);
+    } catch (err) {
+      const message = getErrorMessage(err, 'Не удалось добавить автомобиль');
+      setFormError(
+        message.includes('row-level security') || message.includes('RLS')
+          ? `${message}. Проверьте роль partner и partner_id в profiles.`
+          : message,
+      );
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -849,18 +872,24 @@ export function PartnerCars() {
                 </div>
               </div>
               <div className={styles.modalFooter}>
+                {formError && (
+                  <p style={{ margin: '0 0 12px', color: '#dc2626', fontSize: 14, width: '100%' }}>{formError}</p>
+                )}
                 <button
                   className={styles.modalBtn}
-                  onClick={() => setAddModalOpen(false)}
+                  onClick={() => {
+                    setAddModalOpen(false);
+                    setFormError(null);
+                  }}
                 >
                   Отмена
                 </button>
                 <button
                   className={`${styles.modalBtn} ${styles.modalBtnPrimary}`}
                   onClick={handleAddItem}
-                  disabled={!formData.brand || !formData.model || formData.price_per_day <= 0}
+                  disabled={saving || !formData.brand || !formData.model || formData.price_per_day <= 0}
                 >
-                  Добавить
+                  {saving ? 'Сохранение...' : 'Добавить'}
                 </button>
               </div>
             </div>

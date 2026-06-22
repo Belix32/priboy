@@ -844,3 +844,21 @@ DROP TRIGGER IF EXISTS trg_partner_reviews_rating ON public.partner_reviews;
 CREATE TRIGGER trg_partner_reviews_rating
   AFTER INSERT OR UPDATE OR DELETE ON public.partner_reviews
   FOR EACH ROW EXECUTE FUNCTION public.refresh_partner_rating();
+
+-- Sprint 4 follow-up: explicit WITH CHECK on partner_cars RLS
+
+DROP POLICY IF EXISTS "Admins can manage cars" ON public.partner_cars;
+CREATE POLICY "Admins can manage cars" ON public.partner_cars
+  FOR ALL
+  USING (public.is_admin_or_moderator())
+  WITH CHECK (public.is_admin_or_moderator());
+
+DROP POLICY IF EXISTS "Partners can manage own cars" ON public.partner_cars;
+CREATE POLICY "Partners can manage own cars" ON public.partner_cars
+  FOR ALL
+  USING (
+    public.is_partner() AND partner_id = public.current_partner_id()
+  )
+  WITH CHECK (
+    public.is_partner() AND partner_id = public.current_partner_id()
+  );

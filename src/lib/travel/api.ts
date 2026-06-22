@@ -63,6 +63,16 @@ function generateId(): string {
   return `${Date.now()}_${Math.random().toString(36).substring(2, 15)}`;
 }
 
+async function syncAdminRoleIfNeeded(): Promise<void> {
+  if (!isSupabaseConfigured()) return;
+  try {
+    const supabase = getSupabaseClient();
+    await supabase.rpc('sync_admin_role');
+  } catch {
+    /* RPC from migration 002 */
+  }
+}
+
 // ============================================================================
 // 1. DESTINATIONS
 // ============================================================================
@@ -765,6 +775,7 @@ export async function createCar(
   }
 
   const supabase = getSupabaseClient();
+  await syncAdminRoleIfNeeded();
   const dbRecord: Record<string, unknown> = {
     partner_id: data.partner_id,
     location_id: data.location_id || null,
@@ -779,7 +790,7 @@ export async function createCar(
     price_per_day: data.price_per_day,
     deposit: data.deposit || 0,
     image: data.image || null,
-    images: data.images || null,
+    images: data.images ?? [],
     description: data.description || null,
     is_available: data.is_available ?? true,
     is_active: data.is_active ?? true,
