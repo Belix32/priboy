@@ -89,3 +89,16 @@ export async function getStoragePricePerDay(): Promise<number> {
   const settings = await getAppSettings();
   return settings.storage_price_per_day;
 }
+
+export async function getCommissionRate(): Promise<number> {
+  const settings = await getAppSettings();
+  return settings.default_commission_rate;
+}
+
+export async function getRentalDayLimits(): Promise<{ min: number; max: number }> {
+  const settings = await getAppSettings();
+  return {
+    min: settings.min_rental_days,
+    max: settings.max_rental_days,
+  };
+}

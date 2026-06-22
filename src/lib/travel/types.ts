@@ -272,6 +272,12 @@ export interface LocalTravelData {
 // Price calculation result
 // ============================================================================
 
+export interface TravelPriceOptions {
+  commissionRate?: number;
+  seasonalDiscountPercent?: number;
+  seasonalDiscountName?: string;
+}
+
 export interface TravelPriceBreakdown {
   totalRentalDays: number;
   totalRentalPrice: number;
@@ -280,4 +286,7 @@ export interface TravelPriceBreakdown {
   commissionPrice: number;
   totalPrice: number;
   discountAmount?: number;
+  seasonalDiscountAmount?: number;
+  seasonalDiscountName?: string;
+  commissionRate?: number;
 }

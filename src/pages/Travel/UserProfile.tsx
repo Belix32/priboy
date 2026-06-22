@@ -4,6 +4,8 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useBookings } from '../../hooks/useBookings';
 import { getErrorMessage } from '../../lib/apiError';
 import { cancelTravelBooking } from '../../lib/travel/api';
+import { createYooKassaPayment } from '../../lib/travel/payments';
+import { getSupabaseClient, isSupabaseConfigured } from '../../lib/supabase';
 import { getCurrentUserProfile, updateUserProfile, profileToUserCar } from '../../lib/travel/profileApi';
 import { Button } from '../../components/Button/Button';
 import type { TravelBooking } from '../../lib/travel/types';
@@ -22,6 +24,26 @@ function formatDateShort(dateStr: string): string {
     month: 'short',
     year: 'numeric',
   });
+}
+
+function getPaymentLabel(status: string): string {
+  const map: Record<string, string> = {
+    pending: 'Ожидает оплаты',
+    paid: 'Оплачено',
+    refunded: 'Возврат',
+    partially_refunded: 'Частичный возврат',
+  };
+  return map[status] || status;
+}
+
+function getPaymentClass(status: string): string {
+  const map: Record<string, string> = {
+    pending: styles.paymentPending,
+    paid: styles.paymentPaid,
+    refunded: styles.paymentRefunded,
+    partially_refunded: styles.paymentRefunded,
+  };
+  return map[status] || '';
 }
 
 function getStatusLabel(status: string): string {
@@ -68,6 +90,8 @@ export function UserProfile() {
   const { bookings, loading, error, refresh } = useBookings();
   const [activeTab, setActiveTab] = useState<'active' | 'history'>('active');
   const [cancellingId, setCancellingId] = useState<string | null>(null);
+  const [payingId, setPayingId] = useState<string | null>(null);
+  const [payError, setPayError] = useState<string | null>(null);
   const [cancelError, setCancelError] = useState<string | null>(null);
   const [profileError, setProfileError] = useState<string | null>(null);
   const [savingProfile, setSavingProfile] = useState(false);
@@ -117,6 +141,26 @@ export function UserProfile() {
       setCarForm(saved);
     }
   }, [ownCar]);
+
+  const handlePayOnline = useCallback(async (tripId: string) => {
+    if (!isSupabaseConfigured()) {
+      setPayError('Онлайн-оплата недоступна');
+      return;
+    }
+    setPayingId(tripId);
+    setPayError(null);
+    try {
+      const supabase = getSupabaseClient();
+      const { data } = await supabase.auth.getSession();
+      const token = data.session?.access_token;
+      if (!token) throw new Error('Необходимо войти в аккаунт');
+      const { confirmationUrl } = await createYooKassaPayment(tripId, token);
+      window.location.href = confirmationUrl;
+    } catch (err) {
+      setPayError(getErrorMessage(err, 'Не удалось создать платёж'));
+      setPayingId(null);
+    }
+  }, []);
 
   const handleCancel = useCallback(async (tripId: string) => {
     if (!confirm('Вы уверены, что хотите отменить поездку?')) return;
@@ -234,6 +278,12 @@ export function UserProfile() {
             </div>
           )}
           <div className={styles.tripDetailRow}>
+            <span>Оплата</span>
+            <span className={`${styles.paymentBadge} ${getPaymentClass(trip.payment_status)}`}>
+              {getPaymentLabel(trip.payment_status)}
+            </span>
+          </div>
+          <div className={styles.tripDetailRow}>
             <span>Стоимость</span>
             <span className={styles.tripPrice}>
               {trip.total_price.toLocaleString('ru-RU')} ₽
@@ -242,7 +292,19 @@ export function UserProfile() {
         </div>
 
         <div className={styles.tripActions}>
-          {trip.status === 'confirmed' && (
+          {trip.payment_status === 'pending' &&
+            trip.status !== 'cancelled' &&
+            isSupabaseConfigured() && (
+              <Button
+                variant="primary"
+                size="small"
+                onClick={() => handlePayOnline(trip.id)}
+                disabled={payingId === trip.id}
+              >
+                {payingId === trip.id ? 'Переход к оплате...' : 'Оплатить онлайн'}
+              </Button>
+            )}
+          {(trip.status === 'confirmed' || trip.status === 'active') && (
             <Button
               variant="primary"
               size="small"
@@ -502,6 +564,7 @@ export function UserProfile() {
           </div>
 
           {cancelError && <p className={styles.cancelError}>{cancelError}</p>}
+          {payError && <p className={styles.cancelError}>{payError}</p>}
 
           <div className={styles.list}>
             {loading ? (

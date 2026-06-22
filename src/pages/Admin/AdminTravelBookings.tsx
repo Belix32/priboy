@@ -5,119 +5,12 @@ import { AdminLayout } from './components/AdminLayout';
 import { TravelModal, ModalButtons } from './components/TravelModal';
 import modalStyles from './components/TravelModal.module.css';
 import styles from './AdminTravel.module.css';
-import type { TravelBooking, TravelDestination, RentalPartner, PartnerCar } from '../../lib/travel/types';
+import type { TravelBooking, TravelDestination } from '../../lib/travel/types';
 import { getAllTravelBookingsAdmin, getAllDestinationsAdmin, updateTravelBookingStatus, updateTravelBookingPaymentStatus, cancelTravelBooking } from '../../lib/travel/api';
 
-const MOCK_DESTINATIONS: TravelDestination[] = [
-  { id: 'd1', name: 'Сочи', slug: 'sochi', description: null, image: null, region: null, latitude: null, longitude: null, is_active: true, sort_order: 1, created_at: '', updated_at: '' },
-  { id: 'd2', name: 'Анапа', slug: 'anapa', description: null, image: null, region: null, latitude: null, longitude: null, is_active: true, sort_order: 2, created_at: '', updated_at: '' },
-  { id: 'd3', name: 'Геленджик', slug: 'gelendzhik', description: null, image: null, region: null, latitude: null, longitude: null, is_active: true, sort_order: 3, created_at: '', updated_at: '' },
-  { id: 'd4', name: 'Новороссийск', slug: 'novorossiysk', description: null, image: null, region: null, latitude: null, longitude: null, is_active: true, sort_order: 4, created_at: '', updated_at: '' },
-];
 
-const MOCK_PARTNERS: RentalPartner[] = [
-  { id: 'p1', name: 'Авангард-Авто', slug: 'avangard-avto', description: null, logo: null, phone: null, email: null, website: null, is_active: true, commission_rate: 15, rating: 4.5, created_at: '', updated_at: '' },
-  { id: 'p2', name: 'Юг-Авто', slug: 'yug-avto', description: null, logo: null, phone: null, email: null, website: null, is_active: true, commission_rate: 12, rating: 4.2, created_at: '', updated_at: '' },
-  { id: 'p3', name: 'Black Sea Rent', slug: 'black-sea-rent', description: null, logo: null, phone: null, email: null, website: null, is_active: true, commission_rate: 20, rating: 4.8, created_at: '', updated_at: '' },
-];
 
-const MOCK_CARS: PartnerCar[] = [
-  { id: 'c1', partner_id: 'p1', location_id: null, brand: 'Hyundai', model: 'Solaris', year: 2023, color: 'Белый', license_plate: 'А123ВВ', transmission: 'automatic', fuel_type: 'gasoline', seats: 5, price_per_day: 2500, deposit: 10000, image: null, images: [], description: null, is_available: true, is_active: true, created_at: '', updated_at: '' },
-  { id: 'c2', partner_id: 'p1', location_id: null, brand: 'Kia', model: 'Rio', year: 2024, color: 'Синий', license_plate: 'А456ВВ', transmission: 'automatic', fuel_type: 'gasoline', seats: 5, price_per_day: 2800, deposit: 12000, image: null, images: [], description: null, is_available: true, is_active: true, created_at: '', updated_at: '' },
-  { id: 'c3', partner_id: 'p2', location_id: null, brand: 'Lada', model: 'Vesta', year: 2023, color: 'Чёрный', license_plate: 'В789СС', transmission: 'manual', fuel_type: 'gasoline', seats: 5, price_per_day: 1800, deposit: 8000, image: null, images: [], description: null, is_available: true, is_active: true, created_at: '', updated_at: '' },
-  { id: 'c4', partner_id: 'p3', location_id: null, brand: 'Toyota', model: 'Camry', year: 2024, color: 'Белый', license_plate: 'С345НН', transmission: 'automatic', fuel_type: 'gasoline', seats: 5, price_per_day: 4500, deposit: 20000, image: null, images: [], description: null, is_available: true, is_active: true, created_at: '', updated_at: '' },
-];
 
-const MOCK_BOOKINGS: TravelBooking[] = [
-  {
-    id: 'tb_0001abc', user_id: 'u1', destination_id: 'd1', partner_id: 'p1', car_id: 'c1', location_id: null,
-    start_date: '2025-06-01T10:00:00Z', end_date: '2025-06-07T10:00:00Z',
-    rental_price_per_day: 2500, total_rental_days: 6, total_rental_price: 15000,
-    has_storage: true, storage_price_per_day: 500, total_storage_days: 6, total_storage_price: 3000,
-    own_car_brand: 'Lada', own_car_model: 'Granta', own_car_color: 'Белый', own_car_license_plate: 'К123ММ',
-    total_price: 18000, commission_price: 2700,
-    status: 'active', payment_status: 'paid', payment_method: 'card', payment_id: 'pay_001', notes: null,
-    created_at: '2025-05-20T14:30:00Z', updated_at: '2025-05-20T14:30:00Z',
-    destination: MOCK_DESTINATIONS[0], partner: MOCK_PARTNERS[0], car: MOCK_CARS[0],
-  },
-  {
-    id: 'tb_0002def', user_id: 'u2', destination_id: 'd2', partner_id: 'p2', car_id: 'c3', location_id: null,
-    start_date: '2025-06-10T10:00:00Z', end_date: '2025-06-15T10:00:00Z',
-    rental_price_per_day: 1800, total_rental_days: 5, total_rental_price: 9000,
-    has_storage: false, storage_price_per_day: 0, total_storage_days: null, total_storage_price: 0,
-    own_car_brand: null, own_car_model: null, own_car_color: null, own_car_license_plate: null,
-    total_price: 9000, commission_price: 1080,
-    status: 'confirmed', payment_status: 'pending', payment_method: null, payment_id: null, notes: null,
-    created_at: '2025-05-19T11:00:00Z', updated_at: '2025-05-19T11:00:00Z',
-    destination: MOCK_DESTINATIONS[1], partner: MOCK_PARTNERS[1], car: MOCK_CARS[2],
-  },
-  {
-    id: 'tb_0003ghi', user_id: 'u3', destination_id: 'd3', partner_id: 'p1', car_id: 'c2', location_id: null,
-    start_date: '2025-06-20T10:00:00Z', end_date: '2025-06-28T10:00:00Z',
-    rental_price_per_day: 2800, total_rental_days: 8, total_rental_price: 22400,
-    has_storage: true, storage_price_per_day: 600, total_storage_days: 8, total_storage_price: 4800,
-    own_car_brand: 'Toyota', own_car_model: 'Camry', own_car_color: 'Чёрный', own_car_license_plate: 'О456ОО',
-    total_price: 27200, commission_price: 4080,
-    status: 'pending', payment_status: 'pending', payment_method: null, payment_id: null, notes: 'Нужен детский автокресло',
-    created_at: '2025-05-18T09:15:00Z', updated_at: '2025-05-18T09:15:00Z',
-    destination: MOCK_DESTINATIONS[2], partner: MOCK_PARTNERS[0], car: MOCK_CARS[1],
-  },
-  {
-    id: 'tb_0004jkl', user_id: 'u1', destination_id: 'd1', partner_id: 'p3', car_id: 'c4', location_id: null,
-    start_date: '2025-05-10T10:00:00Z', end_date: '2025-05-17T10:00:00Z',
-    rental_price_per_day: 4500, total_rental_days: 7, total_rental_price: 31500,
-    has_storage: false, storage_price_per_day: 0, total_storage_days: null, total_storage_price: 0,
-    own_car_brand: null, own_car_model: null, own_car_color: null, own_car_license_plate: null,
-    total_price: 31500, commission_price: 6300,
-    status: 'completed', payment_status: 'paid', payment_method: 'card', payment_id: 'pay_002', notes: null,
-    created_at: '2025-04-25T16:45:00Z', updated_at: '2025-05-17T10:00:00Z',
-    destination: MOCK_DESTINATIONS[0], partner: MOCK_PARTNERS[2], car: MOCK_CARS[3],
-  },
-  {
-    id: 'tb_0005mno', user_id: 'u4', destination_id: 'd4', partner_id: 'p2', car_id: 'c3', location_id: null,
-    start_date: '2025-05-05T10:00:00Z', end_date: '2025-05-10T10:00:00Z',
-    rental_price_per_day: 1800, total_rental_days: 5, total_rental_price: 9000,
-    has_storage: false, storage_price_per_day: 0, total_storage_days: null, total_storage_price: 0,
-    own_car_brand: null, own_car_model: null, own_car_color: null, own_car_license_plate: null,
-    total_price: 9000, commission_price: 1080,
-    status: 'cancelled', payment_status: 'refunded', payment_method: 'card', payment_id: 'pay_003', notes: 'Передумал',
-    created_at: '2025-04-20T08:30:00Z', updated_at: '2025-05-03T10:00:00Z',
-    destination: MOCK_DESTINATIONS[3], partner: MOCK_PARTNERS[1], car: MOCK_CARS[2],
-  },
-  {
-    id: 'tb_0006pqr', user_id: 'u5', destination_id: 'd2', partner_id: 'p1', car_id: 'c1', location_id: null,
-    start_date: '2025-07-01T10:00:00Z', end_date: '2025-07-10T10:00:00Z',
-    rental_price_per_day: 2500, total_rental_days: 9, total_rental_price: 22500,
-    has_storage: true, storage_price_per_day: 500, total_storage_days: 9, total_storage_price: 4500,
-    own_car_brand: 'Renault', own_car_model: 'Logan', own_car_color: 'Серый', own_car_license_plate: 'Р789РР',
-    total_price: 27000, commission_price: 4050,
-    status: 'pending', payment_status: 'pending', payment_method: null, payment_id: null, notes: null,
-    created_at: '2025-05-25T08:00:00Z', updated_at: '2025-05-25T08:00:00Z',
-    destination: MOCK_DESTINATIONS[1], partner: MOCK_PARTNERS[0], car: MOCK_CARS[0],
-  },
-  {
-    id: 'tb_0007stu', user_id: 'u2', destination_id: 'd1', partner_id: 'p3', car_id: 'c4', location_id: null,
-    start_date: '2025-07-15T10:00:00Z', end_date: '2025-07-20T10:00:00Z',
-    rental_price_per_day: 4500, total_rental_days: 5, total_rental_price: 22500,
-    has_storage: false, storage_price_per_day: 0, total_storage_days: null, total_storage_price: 0,
-    own_car_brand: null, own_car_model: null, own_car_color: null, own_car_license_plate: null,
-    total_price: 22500, commission_price: 4500,
-    status: 'confirmed', payment_status: 'paid', payment_method: 'card', payment_id: 'pay_004', notes: null,
-    created_at: '2025-06-01T12:00:00Z', updated_at: '2025-06-01T12:00:00Z',
-    destination: MOCK_DESTINATIONS[0], partner: MOCK_PARTNERS[2], car: MOCK_CARS[3],
-  },
-  {
-    id: 'tb_0008vwx', user_id: 'u6', destination_id: 'd3', partner_id: 'p2', car_id: 'c3', location_id: null,
-    start_date: '2025-08-01T10:00:00Z', end_date: '2025-08-14T10:00:00Z',
-    rental_price_per_day: 1800, total_rental_days: 13, total_rental_price: 23400,
-    has_storage: false, storage_price_per_day: 0, total_storage_days: null, total_storage_price: 0,
-    own_car_brand: null, own_car_model: null, own_car_color: null, own_car_license_plate: null,
-    total_price: 23400, commission_price: 2808,
-    status: 'pending', payment_status: 'pending', payment_method: null, payment_id: null, notes: null,
-    created_at: '2025-06-15T15:00:00Z', updated_at: '2025-06-15T15:00:00Z',
-    destination: MOCK_DESTINATIONS[2], partner: MOCK_PARTNERS[1], car: MOCK_CARS[2],
-  },
-];
 
 const STATUS_OPTIONS = [
   { value: '', label: 'Все статусы' },

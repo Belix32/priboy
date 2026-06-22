@@ -1215,3 +1215,74 @@
   white-space: pre-wrap;
   font-size: 14px;
 }
+
+.scanSuccess {
+  color: var(--success, #16a34a);
+  margin-top: 12px;
+}
+
+.scanCard {
+  margin-top: 20px;
+  padding: 20px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+}
+
+.scanCardTitle {
+  margin: 0 0 16px;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.scanDetails {
+  display: grid;
+  gap: 12px;
+  margin: 0 0 16px;
+}
+
+.scanDetails div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 14px;
+}
+
+.scanDetails dt {
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+.scanDetails dd {
+  margin: 0;
+  font-weight: 500;
+  text-align: right;
+}
+
+.scanHandoverBtn {
+  width: 100%;
+  padding: 12px 16px;
+  border-radius: 8px;
+  border: none;
+  background: var(--success, #16a34a);
+  color: white;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.scanHandoverBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.scanActiveNote {
+  margin: 12px 0 0;
+  color: var(--success, #16a34a);
+  font-size: 14px;
+}
+
+.scanWarn {
+  margin: 12px 0 0;
+  color: var(--color-error, #dc2626);
+  font-size: 14px;
+}

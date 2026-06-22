@@ -4,8 +4,11 @@ import { useAuth } from '../../contexts/AuthContext';
 import { Button } from '../../components/Button/Button';
 import { Input } from '../../components/Input/Input';
 import { getCarById, getDestinationBySlug, createTravelBooking, calculateTravelPrice } from '../../lib/travel/api';
+import { sendBookingNotification } from '../../lib/travel/notifications';
 import { validatePromoCode } from '../../lib/travel/promos';
-import { getStoragePricePerDay } from '../../lib/travel/settings';
+import { getStoragePricePerDay, getAppSettings, getRentalDayLimits } from '../../lib/travel/settings';
+import { getApplicableSeasonalDiscount } from '../../lib/travel/seasonal';
+import type { SeasonalDiscount } from '../../lib/travel/types';
 import { getCurrentUserProfile, profileToUserCar } from '../../lib/travel/profileApi';
 import { getErrorMessage } from '../../lib/apiError';
 import type { PartnerCar } from '../../lib/travel/types';
@@ -67,6 +70,10 @@ export function TravelBooking() {
   // Storage toggle
   const [storageEnabled, setStorageEnabled] = useState(true);
   const [storagePricePerDay, setStoragePricePerDay] = useState(500);
+  const [commissionRate, setCommissionRate] = useState(15);
+  const [minRentalDays, setMinRentalDays] = useState(1);
+  const [maxRentalDays, setMaxRentalDays] = useState(30);
+  const [seasonalDiscount, setSeasonalDiscount] = useState<SeasonalDiscount | null>(null);
   const [promoCode, setPromoCode] = useState('');
   const [promoDiscount, setPromoDiscount] = useState(0);
   const [promoMessage, setPromoMessage] = useState('');
@@ -75,7 +82,26 @@ export function TravelBooking() {
 
   useEffect(() => {
     getStoragePricePerDay().then(setStoragePricePerDay);
+    getAppSettings().then((s) => setCommissionRate(s.default_commission_rate));
+    getRentalDayLimits().then(({ min, max }) => {
+      setMinRentalDays(min);
+      setMaxRentalDays(max);
+    });
   }, []);
+
+  useEffect(() => {
+    if (!destination || !startDate || !endDate) {
+      setSeasonalDiscount(null);
+      return;
+    }
+    getDestinationBySlug(destination).then((dest) => {
+      if (!dest) {
+        setSeasonalDiscount(null);
+        return;
+      }
+      getApplicableSeasonalDiscount(dest.id, startDate, endDate).then(setSeasonalDiscount);
+    });
+  }, [destination, startDate, endDate]);
 
   // Load car from API
   useEffect(() => {
@@ -109,15 +135,33 @@ export function TravelBooking() {
     });
   }, []);
 
+  const priceOptions = useMemo(
+    () => ({
+      commissionRate,
+      seasonalDiscountPercent: seasonalDiscount?.discount_percent,
+      seasonalDiscountName: seasonalDiscount?.name,
+    }),
+    [commissionRate, seasonalDiscount],
+  );
+
   const priceBreakdown = useMemo(() => {
     if (!car || !startDate || !endDate) return null;
-    return calculateTravelPrice(car, startDate, endDate, storageEnabled, storagePricePerDay, promoDiscount);
-  }, [car, startDate, endDate, storageEnabled, storagePricePerDay, promoDiscount]);
+    return calculateTravelPrice(
+      car,
+      startDate,
+      endDate,
+      storageEnabled,
+      storagePricePerDay,
+      promoDiscount,
+      priceOptions,
+    );
+  }, [car, startDate, endDate, storageEnabled, storagePricePerDay, promoDiscount, priceOptions]);
 
   const days = priceBreakdown?.totalRentalDays || 0;
   const rentTotal = priceBreakdown?.totalRentalPrice || 0;
   const storageTotal = priceBreakdown?.totalStoragePrice || 0;
   const serviceFee = priceBreakdown?.commissionPrice || 0;
+  const seasonalDiscountAmount = priceBreakdown?.seasonalDiscountAmount || 0;
   const totalPrice = priceBreakdown?.totalPrice || 0;
 
   const handleUseProfileCar = () => {
@@ -150,6 +194,15 @@ export function TravelBooking() {
 
     if (!startDate || !endDate) {
       setError('Укажите даты поездки');
+      return;
+    }
+
+    if (days < minRentalDays) {
+      setError(`Минимальный срок аренды — ${minRentalDays} ${minRentalDays === 1 ? 'день' : minRentalDays < 5 ? 'дня' : 'дней'}`);
+      return;
+    }
+    if (days > maxRentalDays) {
+      setError(`Максимальный срок аренды — ${maxRentalDays} дней`);
       return;
     }
 
@@ -192,6 +245,7 @@ export function TravelBooking() {
       );
 
       if (booking) {
+        void sendBookingNotification(booking.id, 'created');
         navigate(`/booking/confirm?bookingId=${booking.id}`);
       } else {
         setError('Не удалось создать бронирование');
@@ -447,7 +501,15 @@ export function TravelBooking() {
                 size="small"
                 onClick={async () => {
                   if (!car || !startDate || !endDate) return;
-                  const base = calculateTravelPrice(car, startDate, endDate, storageEnabled, storagePricePerDay);
+                  const base = calculateTravelPrice(
+                    car,
+                    startDate,
+                    endDate,
+                    storageEnabled,
+                    storagePricePerDay,
+                    0,
+                    priceOptions,
+                  );
                   const result = await validatePromoCode(promoCode, base.totalRentalPrice + base.totalStoragePrice);
                   if (result.valid) {
                     setPromoDiscount(result.discountAmount);
@@ -477,8 +539,25 @@ export function TravelBooking() {
                 <span className={styles.priceRowValue}>{storageTotal.toLocaleString('ru-RU')} ₽</span>
               </div>
             )}
+            {seasonalDiscountAmount > 0 && (
+              <div className={styles.priceRow}>
+                <span>
+                  Сезонная скидка
+                  {seasonalDiscount?.name ? ` (${seasonalDiscount.name})` : ''}
+                </span>
+                <span className={styles.priceRowValue}>
+                  −{seasonalDiscountAmount.toLocaleString('ru-RU')} ₽
+                </span>
+              </div>
+            )}
+            {promoDiscount > 0 && (
+              <div className={styles.priceRow}>
+                <span>Промокод</span>
+                <span className={styles.priceRowValue}>−{promoDiscount.toLocaleString('ru-RU')} ₽</span>
+              </div>
+            )}
             <div className={styles.priceRow}>
-              <span>Комиссия Прибой (15%)</span>
+              <span>Комиссия Прибой ({commissionRate}%)</span>
               <span className={styles.priceRowValue}>{serviceFee.toLocaleString('ru-RU')} ₽</span>
             </div>
             <div className={styles.priceTotal}>

@@ -51,6 +51,7 @@ export {
   getUserTravelBookings,
   getTravelBookingById,
   updateTravelBookingStatus,
+  handoverPartnerBooking,
   cancelTravelBooking,
   updateTravelBookingPaymentStatus,
   checkCarAvailability,

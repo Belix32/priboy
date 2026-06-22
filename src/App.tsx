@@ -6,6 +6,7 @@ import { RouteGuard } from './components/RouteGuard/RouteGuard';
 import { useAuth } from './contexts/AuthContext';
 
 const Login = lazy(() => import('./pages/Login/Login').then(m => ({ default: m.Login })));
+const ResetPassword = lazy(() => import('./pages/Login/ResetPassword').then(m => ({ default: m.ResetPassword })));
 const Register = lazy(() => import('./pages/Register/Register').then(m => ({ default: m.Register })));
 
 const TravelHome = lazy(() => import('./pages/Travel/TravelHome').then(m => ({ default: m.TravelHome })));
@@ -67,6 +68,7 @@ export default function App() {
         <Suspense fallback={<PageLoader />}>
           <Routes>
             <Route path="/login" element={<Login />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/register" element={<Register />} />
             <Route path="/admin-login" element={<Login />} />
 

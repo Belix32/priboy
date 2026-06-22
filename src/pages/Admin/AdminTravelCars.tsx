@@ -13,36 +13,13 @@ import {
   updateCar,
   deleteCar,
 } from '../../lib/travel/api';
+import { uploadCarPhoto, validateCarPhotoFile } from '../../lib/travel/carPhotos';
 import type { PartnerCar, RentalPartner, PartnerLocation } from '../../lib/travel/types';
 
 // Mock partners for partner_id select
-const MOCK_PARTNERS: RentalPartner[] = [
-  { id: 'p1', name: 'Авангард-Авто', slug: 'avangard-avto', description: null, logo: null, phone: null, email: null, website: null, is_active: true, commission_rate: 15, rating: 4.5, created_at: '', updated_at: '' },
-  { id: 'p2', name: 'Юг-Авто', slug: 'yug-avto', description: null, logo: null, phone: null, email: null, website: null, is_active: true, commission_rate: 12, rating: 4.2, created_at: '', updated_at: '' },
-  { id: 'p3', name: 'Black Sea Rent', slug: 'black-sea-rent', description: null, logo: null, phone: null, email: null, website: null, is_active: true, commission_rate: 20, rating: 4.8, created_at: '', updated_at: '' },
-  { id: 'p4', name: 'Море-Авто', slug: 'more-avto', description: null, logo: null, phone: null, email: null, website: null, is_active: true, commission_rate: 10, rating: 3.9, created_at: '', updated_at: '' },
-];
 
 // Mock locations for location_id select
-const MOCK_LOCATIONS: PartnerLocation[] = [
-  { id: 'l1', partner_id: 'p1', destination_id: 'd1', name: 'Сочи Центр', address: 'ул. Ленина, 1', latitude: null, longitude: null, phone: null, has_storage: true, has_rental: true, created_at: '' },
-  { id: 'l2', partner_id: 'p2', destination_id: 'd2', name: 'Анапа Вокзал', address: 'ул. Привокзальная, 5', latitude: null, longitude: null, phone: null, has_storage: true, has_rental: true, created_at: '' },
-  { id: 'l3', partner_id: 'p1', destination_id: 'd3', name: 'Геленджик Центр', address: 'ул. Курортная, 10', latitude: null, longitude: null, phone: null, has_storage: false, has_rental: true, created_at: '' },
-  { id: 'l4', partner_id: 'p3', destination_id: 'd1', name: 'Сочи Аэропорт', address: 'Аэропорт Сочи, терминал B', latitude: null, longitude: null, phone: null, has_storage: true, has_rental: true, created_at: '' },
-];
 
-const MOCK_CARS: PartnerCar[] = [
-  { id: 'c1', partner_id: 'p1', location_id: 'l1', brand: 'Hyundai', model: 'Solaris', year: 2023, color: 'Белый', license_plate: 'А123ВВ', transmission: 'automatic', fuel_type: 'gasoline', seats: 5, price_per_day: 2500, deposit: 10000, image: null, images: [], description: null, is_available: true, is_active: true, created_at: '2024-01-20T10:00:00Z', updated_at: '' },
-  { id: 'c2', partner_id: 'p1', location_id: 'l1', brand: 'Kia', model: 'Rio', year: 2024, color: 'Синий', license_plate: 'А456ВВ', transmission: 'automatic', fuel_type: 'gasoline', seats: 5, price_per_day: 2800, deposit: 12000, image: null, images: [], description: null, is_available: true, is_active: true, created_at: '2024-02-01T14:30:00Z', updated_at: '' },
-  { id: 'c3', partner_id: 'p2', location_id: 'l2', brand: 'Lada', model: 'Vesta', year: 2023, color: 'Чёрный', license_plate: 'В789СС', transmission: 'manual', fuel_type: 'gasoline', seats: 5, price_per_day: 1800, deposit: 8000, image: null, images: [], description: null, is_available: true, is_active: true, created_at: '2024-02-15T09:00:00Z', updated_at: '' },
-  { id: 'c4', partner_id: 'p2', location_id: 'l2', brand: 'Renault', model: 'Logan', year: 2022, color: 'Серебристый', license_plate: 'В012СС', transmission: 'manual', fuel_type: 'gasoline', seats: 5, price_per_day: 1500, deposit: 7000, image: null, images: [], description: null, is_available: false, is_active: true, created_at: '2024-03-01T11:00:00Z', updated_at: '' },
-  { id: 'c5', partner_id: 'p3', location_id: 'l4', brand: 'Toyota', model: 'Camry', year: 2024, color: 'Белый', license_plate: 'С345НН', transmission: 'automatic', fuel_type: 'gasoline', seats: 5, price_per_day: 4500, deposit: 20000, image: null, images: [], description: 'Премиум седан бизнес-класса', is_available: true, is_active: true, created_at: '2024-03-15T08:00:00Z', updated_at: '' },
-  { id: 'c6', partner_id: 'p3', location_id: 'l4', brand: 'BMW', model: 'X5', year: 2024, color: 'Чёрный', license_plate: 'С678НН', transmission: 'automatic', fuel_type: 'diesel', seats: 5, price_per_day: 7000, deposit: 30000, image: null, images: [], description: 'Внедорожник премиум-класса', is_available: true, is_active: true, created_at: '2024-04-01T12:00:00Z', updated_at: '' },
-  { id: 'c7', partner_id: 'p1', location_id: 'l3', brand: 'Volkswagen', model: 'Polo', year: 2023, color: 'Красный', license_plate: 'С901НН', transmission: 'automatic', fuel_type: 'gasoline', seats: 5, price_per_day: 2200, deposit: 10000, image: null, images: [], description: null, is_available: true, is_active: true, created_at: '2024-04-10T16:30:00Z', updated_at: '' },
-  { id: 'c8', partner_id: 'p2', location_id: 'l2', brand: 'Nissan', model: 'Qashqai', year: 2023, color: 'Серый', license_plate: 'Д234РР', transmission: 'automatic', fuel_type: 'gasoline', seats: 5, price_per_day: 3500, deposit: 15000, image: null, images: [], description: 'Компактный кроссовер', is_available: false, is_active: false, created_at: '2024-04-20T11:00:00Z', updated_at: '' },
-  { id: 'c9', partner_id: 'p4', location_id: null, brand: 'Skoda', model: 'Octavia', year: 2022, color: 'Синий', license_plate: 'Д567РР', transmission: 'manual', fuel_type: 'gasoline', seats: 5, price_per_day: 2000, deposit: 9000, image: null, images: [], description: null, is_available: true, is_active: true, created_at: '2024-05-01T09:00:00Z', updated_at: '' },
-  { id: 'c10', partner_id: 'p1', location_id: 'l1', brand: 'Mercedes-Benz', model: 'E-Class', year: 2024, color: 'Чёрный', license_plate: 'Д890РР', transmission: 'automatic', fuel_type: 'diesel', seats: 5, price_per_day: 8000, deposit: 35000, image: null, images: [], description: 'Бизнес-седан представительского класса', is_available: true, is_active: true, created_at: '2024-05-10T14:00:00Z', updated_at: '' },
-];
 
 interface CarFormData {
   partner_id: string;
@@ -111,6 +88,8 @@ export function AdminTravelCars() {
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [addModalOpen, setAddModalOpen] = useState(false);
   const [formData, setFormData] = useState<CarFormData>(initialFormData);
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [photoError, setPhotoError] = useState<string | null>(null);
 
   const [partners, setPartners] = useState<RentalPartner[]>([]);
   const [locations, setLocations] = useState<PartnerLocation[]>([]);
@@ -204,14 +183,42 @@ export function AdminTravelCars() {
       is_active: formData.is_active,
     });
     if (created) {
-      setCars((prev) => [created, ...prev]);
+      let saved = created;
+      if (photoFile) {
+        const validation = validateCarPhotoFile(photoFile);
+        if (validation) {
+          setPhotoError(validation);
+          return;
+        }
+        const imageUrl = await uploadCarPhoto(photoFile, formData.partner_id, created.id);
+        await updateCar(created.id, { image: imageUrl });
+        saved = { ...created, image: imageUrl };
+      }
+      setCars((prev) => [saved, ...prev]);
       setAddModalOpen(false);
       setFormData(initialFormData);
+      setPhotoFile(null);
+      setPhotoError(null);
     }
   };
 
   const handleUpdateItem = async () => {
     if (!editItem) return;
+    if (photoFile) {
+      const validation = validateCarPhotoFile(photoFile);
+      if (validation) {
+        setPhotoError(validation);
+        return;
+      }
+      const imageUrl = await uploadCarPhoto(photoFile, editItem.partner_id, editItem.id);
+      const updated = { ...editItem, image: imageUrl };
+      await updateCar(editItem.id, { image: imageUrl });
+      setCars((prev) => prev.map((c) => (c.id === editItem.id ? updated : c)));
+      setEditItem(null);
+      setPhotoFile(null);
+      setPhotoError(null);
+      return;
+    }
     await updateCar(editItem.id, editItem);
     setCars((prev) => prev.map((c) => (c.id === editItem.id ? editItem : c)));
     setEditItem(null);
@@ -637,6 +644,19 @@ export function AdminTravelCars() {
                 />
               </div>
               <div className={modalStyles.formGroup}>
+                <label className={modalStyles.formLabel}>Фото (JPEG/PNG/WebP, до 5 МБ)</label>
+                <input
+                  className={modalStyles.formInput}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  onChange={(e) => {
+                    setPhotoFile(e.target.files?.[0] || null);
+                    setPhotoError(null);
+                  }}
+                />
+                {photoError && <p style={{ color: '#dc2626', fontSize: 13 }}>{photoError}</p>}
+              </div>
+              <div className={modalStyles.formGroup}>
                 <label className={modalStyles.formLabel}>URL изображения</label>
                 <input
                   className={modalStyles.formInput}
@@ -846,6 +866,19 @@ export function AdminTravelCars() {
                 onChange={(e) => handleFormChange('deposit', Number(e.target.value))}
                 placeholder="10000"
               />
+            </div>
+            <div className={modalStyles.formGroup}>
+              <label className={modalStyles.formLabel}>Фото (JPEG/PNG/WebP, до 5 МБ)</label>
+              <input
+                className={modalStyles.formInput}
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                onChange={(e) => {
+                  setPhotoFile(e.target.files?.[0] || null);
+                  setPhotoError(null);
+                }}
+              />
+              {photoError && <p style={{ color: '#dc2626', fontSize: 13 }}>{photoError}</p>}
             </div>
             <div className={modalStyles.formGroup}>
               <label className={modalStyles.formLabel}>URL изображения</label>

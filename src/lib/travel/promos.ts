@@ -52,14 +52,16 @@ export function computePromoDiscount(promo: PromoCode, subtotal: number): number
 export function applyDiscountToPrice(
   breakdown: TravelPriceBreakdown,
   discountAmount: number,
+  commissionRate: number = breakdown.commissionRate ?? 15,
 ): TravelPriceBreakdown & { discountAmount: number } {
   const subtotal = breakdown.totalRentalPrice + breakdown.totalStoragePrice;
   const discountedSubtotal = Math.max(0, subtotal - discountAmount);
-  const commissionPrice = Math.round(discountedSubtotal * 0.15 * 100) / 100;
+  const commissionPrice = Math.round(discountedSubtotal * (commissionRate / 100) * 100) / 100;
   return {
     ...breakdown,
     discountAmount,
     commissionPrice,
+    commissionRate,
     totalPrice: discountedSubtotal + commissionPrice,
   };
 }

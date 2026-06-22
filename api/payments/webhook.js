@@ -5,6 +5,7 @@ import {
   getYooKassaCredentials,
   isYooKassaIp,
 } from './yookassa.js';
+import { notifyBookingById } from '../notifications/email.js';
 
 function getServiceSupabase() {
   const url = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
@@ -88,6 +89,7 @@ export default async function handler(req, res) {
     );
 
     if (verifiedPayment.status === 'succeeded') {
+      const wasPaid = booking.payment_status === 'paid';
       await supabase
         .from('travel_bookings')
         .update({
@@ -97,6 +99,14 @@ export default async function handler(req, res) {
         })
         .eq('id', bookingId)
         .neq('payment_status', 'paid');
+
+      if (!wasPaid) {
+        try {
+          await notifyBookingById(supabase, bookingId, 'paid');
+        } catch (notifyErr) {
+          console.error('Payment notification error:', notifyErr);
+        }
+      }
     } else if (verifiedPayment.status === 'canceled') {
       await supabase
         .from('payment_transactions')

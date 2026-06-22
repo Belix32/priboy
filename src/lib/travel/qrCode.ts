@@ -55,6 +55,20 @@ export function buildBookingQrText(
   return lines.join('\n');
 }
 
+/** Extract booking UUID from QR text or raw input */
+export function parseBookingIdFromQrText(text: string): string | null {
+  const trimmed = text.trim();
+  const idLine = trimmed.split('\n').find((line) => line.startsWith('ID: '));
+  if (idLine) return idLine.replace('ID: ', '').trim();
+
+  const uuidMatch = trimmed.match(
+    /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i,
+  );
+  if (uuidMatch) return uuidMatch[0];
+
+  return trimmed.length >= 8 ? trimmed : null;
+}
+
 export async function generateBookingQrDataUrl(text: string, size = 240): Promise<string> {
   return QRCode.toDataURL(text, {
     width: size,

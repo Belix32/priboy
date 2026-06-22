@@ -8,70 +8,7 @@ import styles from './AdminTravel.module.css';
 import type { CarStorage, RentalPartner } from '../../lib/travel/types';
 import { getAllStorageAdmin, getAllPartnersAdmin, updateStorageStatus } from '../../lib/travel/api';
 
-const MOCK_PARTNERS: RentalPartner[] = [
-  { id: 'p1', name: 'Авангард-Авто', slug: 'avangard-avto', description: null, logo: null, phone: null, email: null, website: null, is_active: true, commission_rate: 15, rating: 4.5, created_at: '', updated_at: '' },
-  { id: 'p2', name: 'Юг-Авто', slug: 'yug-avto', description: null, logo: null, phone: null, email: null, website: null, is_active: true, commission_rate: 12, rating: 4.2, created_at: '', updated_at: '' },
-  { id: 'p3', name: 'Black Sea Rent', slug: 'black-sea-rent', description: null, logo: null, phone: null, email: null, website: null, is_active: true, commission_rate: 20, rating: 4.8, created_at: '', updated_at: '' },
-];
 
-const MOCK_STORAGE: CarStorage[] = [
-  {
-    id: 'cs_001', travel_booking_id: 'tb_0001abc', partner_id: 'p1', location_id: null,
-    car_brand: 'Lada', car_model: 'Granta', car_color: 'Белый', car_license_plate: 'К123ММ',
-    check_in_date: '2025-06-01T10:00:00Z', check_out_date: '2025-06-07T10:00:00Z',
-    actual_check_in: '2025-06-01T09:45:00Z', actual_check_out: null,
-    status: 'in_storage', notes: null, created_at: '2025-05-20T14:30:00Z', updated_at: '2025-06-01T09:45:00Z',
-  },
-  {
-    id: 'cs_002', travel_booking_id: 'tb_0003ghi', partner_id: 'p1', location_id: null,
-    car_brand: 'Toyota', car_model: 'Camry', car_color: 'Чёрный', car_license_plate: 'О456ОО',
-    check_in_date: '2025-06-20T10:00:00Z', check_out_date: '2025-06-28T10:00:00Z',
-    actual_check_in: null, actual_check_out: null,
-    status: 'pending', notes: null, created_at: '2025-05-18T09:15:00Z', updated_at: '2025-05-18T09:15:00Z',
-  },
-  {
-    id: 'cs_003', travel_booking_id: 'tb_0006pqr', partner_id: 'p1', location_id: null,
-    car_brand: 'Renault', car_model: 'Logan', car_color: 'Серый', car_license_plate: 'Р789РР',
-    check_in_date: '2025-07-01T10:00:00Z', check_out_date: '2025-07-10T10:00:00Z',
-    actual_check_in: null, actual_check_out: null,
-    status: 'pending', notes: 'Требуется мойка', created_at: '2025-05-25T08:00:00Z', updated_at: '2025-05-25T08:00:00Z',
-  },
-  {
-    id: 'cs_004', travel_booking_id: 'tb_0004jkl', partner_id: 'p3', location_id: null,
-    car_brand: 'BMW', car_model: 'X5', car_color: 'Чёрный', car_license_plate: 'М001ММ',
-    check_in_date: '2025-05-10T10:00:00Z', check_out_date: '2025-05-17T10:00:00Z',
-    actual_check_in: '2025-05-10T09:30:00Z', actual_check_out: '2025-05-17T11:00:00Z',
-    status: 'completed', notes: null, created_at: '2025-04-25T16:45:00Z', updated_at: '2025-05-17T11:00:00Z',
-  },
-  {
-    id: 'cs_005', travel_booking_id: 'tb_0005mno', partner_id: 'p2', location_id: null,
-    car_brand: 'Hyundai', car_model: 'Solaris', car_color: 'Белый', car_license_plate: 'Т555ТТ',
-    check_in_date: '2025-05-05T10:00:00Z', check_out_date: '2025-05-10T10:00:00Z',
-    actual_check_in: '2025-05-05T10:00:00Z', actual_check_out: '2025-05-10T09:00:00Z',
-    status: 'cancelled', notes: 'Бронирование отменено', created_at: '2025-04-20T08:30:00Z', updated_at: '2025-05-03T10:00:00Z',
-  },
-  {
-    id: 'cs_006', travel_booking_id: 'tb_0007stu', partner_id: 'p2', location_id: null,
-    car_brand: 'Kia', car_model: 'Sportage', car_color: 'Синий', car_license_plate: 'У777УУ',
-    check_in_date: '2025-07-15T10:00:00Z', check_out_date: '2025-07-20T10:00:00Z',
-    actual_check_in: null, actual_check_out: null,
-    status: 'pending', notes: null, created_at: '2025-06-01T12:00:00Z', updated_at: '2025-06-01T12:00:00Z',
-  },
-  {
-    id: 'cs_007', travel_booking_id: 'tb_0002def', partner_id: 'p1', location_id: null,
-    car_brand: 'Volkswagen', car_model: 'Polo', car_color: 'Красный', car_license_plate: 'А888АА',
-    check_in_date: '2025-06-10T10:00:00Z', check_out_date: '2025-06-15T10:00:00Z',
-    actual_check_in: '2025-06-10T09:50:00Z', actual_check_out: null,
-    status: 'in_storage', notes: null, created_at: '2025-05-19T11:00:00Z', updated_at: '2025-06-10T09:50:00Z',
-  },
-  {
-    id: 'cs_008', travel_booking_id: 'tb_0008vwx', partner_id: 'p3', location_id: null,
-    car_brand: 'Nissan', car_model: 'Qashqai', car_color: 'Серый', car_license_plate: 'В444ВВ',
-    check_in_date: '2025-08-01T10:00:00Z', check_out_date: '2025-08-14T10:00:00Z',
-    actual_check_in: null, actual_check_out: null,
-    status: 'pending', notes: null, created_at: '2025-06-15T15:00:00Z', updated_at: '2025-06-15T15:00:00Z',
-  },
-];
 
 const STATUS_LABELS: Record<string, string> = {
   pending: 'Ожидает',

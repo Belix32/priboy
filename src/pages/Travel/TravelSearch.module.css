@@ -64,6 +64,12 @@
   letter-spacing: 0.5px;
 }
 
+.filterHint {
+  margin: 4px 0 0;
+  font-size: var(--font-size-caption);
+  color: var(--text-secondary);
+}
+
 .filterSelect {
   padding: var(--spacing-md);
   border: 1px solid var(--border);

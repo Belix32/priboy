@@ -13,50 +13,6 @@ import {
   deletePartner,
 } from '../../lib/travel/api';
 
-const MOCK_PARTNERS: RentalPartner[] = [
-  {
-    id: 'p1', name: 'Авангард-Авто', slug: 'avangard-avto',
-    description: 'Надёжный партнёр с большим автопарком в Сочи',
-    logo: null, phone: '+7 (862) 255-55-55', email: 'info@avangard-avto.ru',
-    website: 'https://avangard-avto.ru', is_active: true, commission_rate: 15, rating: 4.5,
-    created_at: '2024-01-15T10:00:00Z', updated_at: '2024-06-01T10:00:00Z',
-  },
-  {
-    id: 'p2', name: 'Юг-Авто', slug: 'yug-avto',
-    description: 'Прокат автомобилей в Анапе и Геленджике',
-    logo: null, phone: '+7 (861) 333-33-33', email: 'info@yug-avto.ru',
-    website: 'https://yug-avto.ru', is_active: true, commission_rate: 12, rating: 4.2,
-    created_at: '2024-02-01T14:30:00Z', updated_at: '2024-06-01T10:00:00Z',
-  },
-  {
-    id: 'p3', name: 'Black Sea Rent', slug: 'black-sea-rent',
-    description: 'Премиальный автопрокат на побережье',
-    logo: null, phone: '+7 (988) 777-77-77', email: 'rent@blacksea.ru',
-    website: 'https://blacksea-rent.ru', is_active: true, commission_rate: 20, rating: 4.8,
-    created_at: '2024-02-15T09:00:00Z', updated_at: '2024-06-01T10:00:00Z',
-  },
-  {
-    id: 'p4', name: 'Море-Авто', slug: 'more-avto',
-    description: 'Доступные цены на аренду авто в Крыму',
-    logo: null, phone: '+7 (365) 222-22-22', email: 'info@more-avto.ru',
-    website: 'https://more-avto.ru', is_active: true, commission_rate: 10, rating: 3.9,
-    created_at: '2024-03-01T11:00:00Z', updated_at: '2024-06-01T10:00:00Z',
-  },
-  {
-    id: 'p5', name: 'Кавказ-Тур', slug: 'kavkaz-tur',
-    description: 'Прокат автомобилей для путешествий по Кавказу',
-    logo: null, phone: '+7 (879) 344-44-44', email: 'info@kavkaz-tur.ru',
-    website: 'https://kavkaz-tur.ru', is_active: false, commission_rate: 18, rating: 4.0,
-    created_at: '2024-03-15T08:00:00Z', updated_at: '2024-06-01T10:00:00Z',
-  },
-  {
-    id: 'p6', name: 'Эконом-Авто', slug: 'ekonom-avto',
-    description: 'Бюджетный прокат автомобилей',
-    logo: null, phone: '+7 (861) 444-44-44', email: 'info@ekonom-avto.ru',
-    website: null, is_active: false, commission_rate: 8, rating: 3.5,
-    created_at: '2024-04-01T12:00:00Z', updated_at: '2024-06-01T10:00:00Z',
-  },
-];
 
 interface PartnerFormData {
   name: string;

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
@@ -30,130 +30,21 @@ interface OfficeLocation {
   has_storage: boolean;
   has_rental: boolean;
   destination: string;
+  destinationSlug: string;
   partner: string;
 }
-
-// ============================================================================
-// Mock Data
-// ============================================================================
-
-const MOCK_LOCATIONS: OfficeLocation[] = [
-  {
-    id: 'loc-1',
-    name: 'АвтоМоре Сочи — Центральный офис',
-    address: 'Сочи, ул. Навагинская, 7',
-    latitude: 43.5855,
-    longitude: 39.7231,
-    phone: '+7 (862) 200-10-10',
-    has_storage: true,
-    has_rental: true,
-    destination: 'Сочи',
-    partner: 'АвтоМоре Сочи',
-  },
-  {
-    id: 'loc-2',
-    name: 'АвтоМоре Сочи — Адлер',
-    address: 'Сочи, Адлер, ул. Ленина, 219',
-    latitude: 43.43,
-    longitude: 39.909,
-    phone: '+7 (862) 200-10-11',
-    has_storage: true,
-    has_rental: true,
-    destination: 'Сочи',
-    partner: 'АвтоМоре Сочи',
-  },
-  {
-    id: 'loc-3',
-    name: 'АвтоМоре Сочи — Аэропорт',
-    address: 'Сочи, Аэропорт, зона прилёта',
-    latitude: 43.4489,
-    longitude: 39.9453,
-    phone: '+7 (862) 200-10-12',
-    has_storage: false,
-    has_rental: true,
-    destination: 'Сочи',
-    partner: 'АвтоМоре Сочи',
-  },
-  {
-    id: 'loc-4',
-    name: 'Южный Прокат — Анапа',
-    address: 'Анапа, ул. Крымская, 150',
-    latitude: 44.89,
-    longitude: 37.318,
-    phone: '+7 (861) 333-55-55',
-    has_storage: true,
-    has_rental: true,
-    destination: 'Анапа',
-    partner: 'Южный Прокат',
-  },
-  {
-    id: 'loc-5',
-    name: 'Южный Прокат — Анапа Ж/Д',
-    address: 'Анапа, Вокзальная площадь, 1',
-    latitude: 44.898,
-    longitude: 37.31,
-    phone: '+7 (861) 333-55-56',
-    has_storage: true,
-    has_rental: true,
-    destination: 'Анапа',
-    partner: 'Южный Прокат',
-  },
-  {
-    id: 'loc-6',
-    name: 'Южный Прокат — Геленджик',
-    address: 'Геленджик, ул. Курзальная, 10',
-    latitude: 44.5615,
-    longitude: 38.073,
-    phone: '+7 (861) 333-55-57',
-    has_storage: true,
-    has_rental: true,
-    destination: 'Геленджик',
-    partner: 'Южный Прокат',
-  },
-  {
-    id: 'loc-7',
-    name: 'АвтоМоре Сочи — Лазаревское',
-    address: 'Сочи, Лазаревское, ул. Победы, 120',
-    latitude: 43.909,
-    longitude: 39.333,
-    phone: '+7 (862) 200-10-13',
-    has_storage: true,
-    has_rental: true,
-    destination: 'Сочи',
-    partner: 'АвтоМоре Сочи',
-  },
-  {
-    id: 'loc-8',
-    name: 'АвтоМоре Сочи — Красная Поляна',
-    address: 'Сочи, Красная Поляна, ул. Защитников Кавказа, 75',
-    latitude: 43.6789,
-    longitude: 40.205,
-    phone: '+7 (862) 200-10-14',
-    has_storage: false,
-    has_rental: true,
-    destination: 'Сочи',
-    partner: 'АвтоМоре Сочи',
-  },
-];
 
 // ============================================================================
 // Constants
 // ============================================================================
 
-const DESTINATION_COLORS: Record<string, string> = {
-  Сочи: '#2563eb',
-  Анапа: '#059669',
-  Геленджик: '#f59e0b',
-};
-
 const DEFAULT_COLOR = '#6b7280';
+const DESTINATION_PALETTE = ['#2563eb', '#059669', '#f59e0b', '#8b5cf6', '#ec4899', '#0ea5e9'];
 
-const DESTINATION_FILTERS = [
-  { value: '', label: 'Все направления' },
-  { value: 'Сочи', label: 'Сочи' },
-  { value: 'Анапа', label: 'Анапа' },
-  { value: 'Геленджик', label: 'Геленджик' },
-];
+function getDestinationColor(name: string, paletteIndex: number): string {
+  if (!name) return DEFAULT_COLOR;
+  return DESTINATION_PALETTE[paletteIndex % DESTINATION_PALETTE.length];
+}
 
 const MAP_CENTER: [number, number] = [44.5, 39.0];
 const MAP_ZOOM = 8;
@@ -216,17 +107,20 @@ function OfficeMarker({
   location,
   isSelected,
   onSelect,
+  onBook,
   popupOpen,
+  markerColor,
   onPopupClose,
 }: {
   location: OfficeLocation;
   isSelected: boolean;
   onSelect: (id: string) => void;
+  onBook: (location: OfficeLocation) => void;
   popupOpen: boolean;
+  markerColor: string;
   onPopupClose: () => void;
 }) {
   const markerRef = useRef<L.Marker>(null);
-  const color = DESTINATION_COLORS[location.destination] || DEFAULT_COLOR;
 
   useEffect(() => {
     if (popupOpen && markerRef.current) {
@@ -240,7 +134,7 @@ function OfficeMarker({
     <Marker
       ref={markerRef}
       position={[location.latitude, location.longitude]}
-      icon={createOfficeIcon(color, isSelected)}
+      icon={createOfficeIcon(markerColor, isSelected)}
       eventHandlers={{
         click: () => {
           onSelect(location.id);
@@ -273,6 +167,13 @@ function OfficeMarker({
           <button
             type="button"
             className={styles.popupDetailBtn}
+            onClick={() => onBook(location)}
+          >
+            Забронировать авто
+          </button>
+          <button
+            type="button"
+            className={styles.popupDetailBtnSecondary}
             onClick={() => onSelect(location.id)}
           >
             Подробнее
@@ -290,6 +191,7 @@ function OfficeMarker({
 export function TravelMap() {
   const navigate = useNavigate();
   const [locations, setLocations] = useState<OfficeLocation[]>([]);
+  const [locationsLoading, setLocationsLoading] = useState(true);
   const [selectedLocationId, setSelectedLocationId] = useState<string | null>(null);
   const [destinationFilter, setDestinationFilter] = useState('');
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -297,25 +199,45 @@ export function TravelMap() {
   const listRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    getAllLocationsAdmin().then((data) => {
-      setLocations(
-        data
-          .filter((loc) => loc.latitude && loc.longitude)
-          .map((loc: PartnerLocation) => ({
-            id: loc.id,
-            name: loc.name,
-            address: loc.address,
-            latitude: Number(loc.latitude),
-            longitude: Number(loc.longitude),
-            phone: loc.phone || '',
-            has_storage: loc.has_storage,
-            has_rental: loc.has_rental,
-            destination: loc.destination?.name || '',
-            partner: loc.partner?.name || '',
-          })),
-      );
-    });
+    setLocationsLoading(true);
+    getAllLocationsAdmin()
+      .then((data) => {
+        setLocations(
+          data
+            .filter((loc) => loc.latitude && loc.longitude)
+            .map((loc: PartnerLocation) => ({
+              id: loc.id,
+              name: loc.name,
+              address: loc.address,
+              latitude: Number(loc.latitude),
+              longitude: Number(loc.longitude),
+              phone: loc.phone || '',
+              has_storage: loc.has_storage,
+              has_rental: loc.has_rental,
+              destination: loc.destination?.name || '',
+              destinationSlug: loc.destination?.slug || '',
+              partner: loc.partner?.name || '',
+            })),
+        );
+      })
+      .finally(() => setLocationsLoading(false));
   }, []);
+
+  const destinationFilters = useMemo(() => {
+    const names = [...new Set(locations.map((l) => l.destination).filter(Boolean))].sort();
+    return [
+      { value: '', label: 'Все направления' },
+      ...names.map((name) => ({ value: name, label: name })),
+    ];
+  }, [locations]);
+
+  const destinationColorMap = useMemo(() => {
+    const map = new Map<string, string>();
+    destinationFilters
+      .filter((f) => f.value)
+      .forEach((f, index) => map.set(f.value, getDestinationColor(f.value, index)));
+    return map;
+  }, [destinationFilters]);
 
   const filteredLocations = destinationFilter
     ? locations.filter((loc) => loc.destination === destinationFilter)
@@ -323,6 +245,17 @@ export function TravelMap() {
 
   const selectedLocation =
     locations.find((loc) => loc.id === selectedLocationId) ?? null;
+
+  const handleBookFromOffice = useCallback(
+    (loc: OfficeLocation) => {
+      if (!loc.destinationSlug) {
+        navigate('/search');
+        return;
+      }
+      navigate(`/search?destination=${encodeURIComponent(loc.destinationSlug)}`);
+    },
+    [navigate],
+  );
 
   // Fly-to target (when user clicks a sidebar item)
   const [flyTarget, setFlyTarget] = useState<OfficeLocation | null>(null);
@@ -421,7 +354,7 @@ export function TravelMap() {
               setFlyTarget(null);
             }}
           >
-            {DESTINATION_FILTERS.map((f) => (
+            {destinationFilters.map((f) => (
               <option key={f.value} value={f.value}>
                 {f.label}
               </option>
@@ -431,14 +364,16 @@ export function TravelMap() {
 
         {/* Office list */}
         <div className={styles.officeList} ref={listRef}>
-          {filteredLocations.length === 0 ? (
+          {locationsLoading ? (
+            <div className={styles.officeListEmpty}>Загрузка офисов...</div>
+          ) : filteredLocations.length === 0 ? (
             <div className={styles.officeListEmpty}>
-              Нет офисов в выбранном направлении
+              Нет офисов с координатами в выбранном направлении
             </div>
           ) : (
             filteredLocations.map((loc) => {
               const isSelected = selectedLocationId === loc.id;
-              const color = DESTINATION_COLORS[loc.destination] || DEFAULT_COLOR;
+              const color = destinationColorMap.get(loc.destination) || DEFAULT_COLOR;
               return (
                 <button
                   key={loc.id}
@@ -471,6 +406,26 @@ export function TravelMap() {
             })
           )}
         </div>
+
+        {selectedLocation && (
+          <div className={styles.officeDetail}>
+            <h3 className={styles.officeDetailTitle}>{selectedLocation.name}</h3>
+            <p className={styles.officeDetailMeta}>{selectedLocation.address}</p>
+            {selectedLocation.phone && (
+              <p className={styles.officeDetailMeta}>{selectedLocation.phone}</p>
+            )}
+            <p className={styles.officeDetailMeta}>{selectedLocation.partner}</p>
+            {selectedLocation.has_rental && (
+              <button
+                type="button"
+                className={styles.officeDetailBtn}
+                onClick={() => handleBookFromOffice(selectedLocation)}
+              >
+                Забронировать авто
+              </button>
+            )}
+          </div>
+        )}
       </aside>
 
       {/* Map */}
@@ -499,7 +454,9 @@ export function TravelMap() {
               location={loc}
               isSelected={selectedLocationId === loc.id}
               onSelect={handleSelectLocation}
+              onBook={handleBookFromOffice}
               popupOpen={popupOpenId === loc.id}
+              markerColor={destinationColorMap.get(loc.destination) || DEFAULT_COLOR}
               onPopupClose={handlePopupClose}
             />
           ))}

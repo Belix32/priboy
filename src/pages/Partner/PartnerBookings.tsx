@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { getPartnerBookings, updateTravelBookingStatus, updateTravelBookingPaymentStatus } from '../../lib/travel/api';
+import { sendBookingNotification } from '../../lib/travel/notifications';
 import { getErrorMessage } from '../../lib/apiError';
 import { PartnerLayout } from './PartnerLayout';
 import styles from './Partner.module.css';
@@ -22,14 +23,6 @@ interface BookingItem {
   own_plate?: string;
 }
 
-const MOCK_BOOKINGS: BookingItem[] = [
-  { id: 'BK-001', client: 'Иван Петров', car_brand: 'Hyundai', car_model: 'Solaris', destination: 'Сочи', start_date: '2026-06-01', end_date: '2026-06-07', total_price: 35000, status: 'active', payment_status: 'paid', created_at: '2026-05-20', has_storage: true, own_car: 'Toyota Camry', own_plate: 'А123ВВ777' },
-  { id: 'BK-002', client: 'Мария Иванова', car_brand: 'Kia', car_model: 'Rio', destination: 'Анапа', start_date: '2026-06-10', end_date: '2026-06-15', total_price: 28000, status: 'confirmed', payment_status: 'paid', created_at: '2026-05-19', has_storage: true, own_car: 'Kia Sportage', own_plate: 'В456СС777' },
-  { id: 'BK-003', client: 'Алексей Смирнов', car_brand: 'Toyota', car_model: 'Camry', destination: 'Сочи', start_date: '2026-06-20', end_date: '2026-06-28', total_price: 56000, status: 'pending', payment_status: 'pending', created_at: '2026-05-18', has_storage: false },
-  { id: 'BK-004', client: 'Елена Козлова', car_brand: 'Renault', car_model: 'Duster', destination: 'Геленджик', start_date: '2026-06-05', end_date: '2026-06-10', total_price: 31000, status: 'completed', payment_status: 'paid', created_at: '2026-05-15', has_storage: true, own_car: 'Nissan X-Trail', own_plate: 'С789ЕЕ777' },
-  { id: 'BK-005', client: 'Дмитрий Новиков', car_brand: 'Nissan', car_model: 'Qashqai', destination: 'Сочи', start_date: '2026-07-15', end_date: '2026-07-22', total_price: 42000, status: 'pending', payment_status: 'pending', created_at: '2026-05-25', has_storage: true, own_car: 'Hyundai Tucson', own_plate: 'К012РР777' },
-  { id: 'BK-006', client: 'Ольга Соколова', car_brand: 'Volkswagen', car_model: 'Polo', destination: 'Анапа', start_date: '2026-06-15', end_date: '2026-06-20', total_price: 30000, status: 'cancelled', payment_status: 'refunded', created_at: '2026-05-10', has_storage: false },
-];
 
 const STATUS_OPTIONS = [
   { value: '', label: 'Все статусы' },
@@ -184,6 +177,9 @@ export function PartnerBookings() {
     setStatusError(null);
     try {
       await updateTravelBookingStatus(id, newStatus);
+      if (newStatus === 'confirmed') {
+        void sendBookingNotification(id, 'confirmed');
+      }
       await loadBookings();
       setViewItem((prev) => (prev?.id === id ? { ...prev, status: newStatus } : prev));
     } catch (err) {
@@ -206,7 +202,9 @@ export function PartnerBookings() {
       await updateTravelBookingPaymentStatus(id, 'paid');
       if (booking.status === 'pending') {
         await updateTravelBookingStatus(id, 'confirmed');
+        void sendBookingNotification(id, 'confirmed');
       }
+      void sendBookingNotification(id, 'paid');
       await loadBookings();
       setViewItem((prev) => {
         if (prev?.id !== id) return prev;

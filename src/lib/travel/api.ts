@@ -4,7 +4,8 @@
 // ============================================================================
 
 import { throwIfSupabaseError } from '../apiError';
-import { getStoragePricePerDay } from './settings';
+import { getStoragePricePerDay, getAppSettings, getRentalDayLimits } from './settings';
+import { getApplicableSeasonalDiscount } from './seasonal';
 import { validatePromoCode, incrementPromoUse } from './promos';
 import { getCurrentUserProfile } from './profileApi';
 import { getSupabaseClient, isSupabaseConfigured } from '../supabase';
@@ -25,6 +26,7 @@ import type {
   PromoCode,
   SeasonalDiscount,
   TravelPriceBreakdown,
+  TravelPriceOptions,
 } from './types';
 
 // ============================================================================
@@ -1118,6 +1120,27 @@ export async function createTravelBooking(
     throw new Error('Дата окончания должна быть позже даты начала');
   }
 
+  const { min: minDays, max: maxDays } = await getRentalDayLimits();
+  const rentalDays = Math.max(1, Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)));
+  if (rentalDays < minDays) {
+    throw new Error(`Минимальный срок аренды — ${minDays} ${minDays === 1 ? 'день' : minDays < 5 ? 'дня' : 'дней'}`);
+  }
+  if (rentalDays > maxDays) {
+    throw new Error(`Максимальный срок аренды — ${maxDays} дней`);
+  }
+
+  const settings = await getAppSettings();
+  const seasonal = await getApplicableSeasonalDiscount(
+    form.destination_id,
+    form.start_date,
+    form.end_date,
+  );
+  const priceOptions: TravelPriceOptions = {
+    commissionRate: settings.default_commission_rate,
+    seasonalDiscountPercent: seasonal?.discount_percent,
+    seasonalDiscountName: seasonal?.name,
+  };
+
   // Calculate price breakdown
   const car = await getCarById(form.car_id);
   if (!car) {
@@ -1135,6 +1158,8 @@ export async function createTravelBooking(
       form.end_date,
       form.has_storage,
       storagePricePerDay,
+      0,
+      priceOptions,
     );
     const promoResult = await validatePromoCode(
       form.promo_code,
@@ -1154,6 +1179,7 @@ export async function createTravelBooking(
     form.has_storage,
     storagePricePerDay,
     discountAmount,
+    priceOptions,
   );
 
   const profile = await getCurrentUserProfile();
@@ -1419,6 +1445,35 @@ export async function updateTravelBookingStatus(
     console.error('Error updating travel booking status:', error);
     throw new Error(error.message);
   }
+}
+
+/**
+ * Partner handover: mark booking as active after QR scan verification
+ */
+export async function handoverPartnerBooking(
+  bookingId: string,
+  partnerId: string,
+): Promise<TravelBooking> {
+  const booking = await getTravelBookingById(bookingId);
+  if (!booking) throw new Error('Бронирование не найдено');
+  if (booking.partner_id !== partnerId) {
+    throw new Error('Это бронирование принадлежит другому партнёру');
+  }
+  if (booking.status === 'cancelled' || booking.status === 'completed') {
+    throw new Error('Бронирование уже завершено или отменено');
+  }
+  if (booking.payment_status !== 'paid') {
+    throw new Error('Нельзя выдать авто без оплаты');
+  }
+  if (booking.status !== 'confirmed' && booking.status !== 'active') {
+    throw new Error('Выдача возможна только для подтверждённых броней');
+  }
+  if (booking.status === 'active') return booking;
+
+  await updateTravelBookingStatus(bookingId, 'active');
+  const updated = await getTravelBookingById(bookingId);
+  if (!updated) throw new Error('Бронирование не найдено');
+  return updated;
 }
 
 /**
@@ -1776,8 +1831,8 @@ export async function getAllStorageAdmin(): Promise<CarStorage[]> {
 // ============================================================================
 
 /**
- * Calculate full travel price breakdown
- * Commission is 15% of the subtotal (rental + storage)
+ * Calculate full travel price breakdown.
+ * Seasonal discount applies to rental; promo discount applies to subtotal after seasonal.
  */
 export function calculateTravelPrice(
   car: PartnerCar,
@@ -1786,6 +1841,7 @@ export function calculateTravelPrice(
   hasStorage: boolean,
   storagePricePerDay: number = 0,
   discountAmount: number = 0,
+  options: TravelPriceOptions = {},
 ): TravelPriceBreakdown {
   const start = new Date(startDate);
   const end = new Date(endDate);
@@ -1793,14 +1849,21 @@ export function calculateTravelPrice(
   const diffMs = end.getTime() - start.getTime();
   const totalRentalDays = Math.max(1, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
 
-  const totalRentalPrice = totalRentalDays * car.price_per_day;
+  const grossRentalPrice = totalRentalDays * car.price_per_day;
+  const seasonalPercent = Math.max(0, options.seasonalDiscountPercent || 0);
+  const seasonalDiscountAmount =
+    seasonalPercent > 0
+      ? Math.round(grossRentalPrice * (seasonalPercent / 100) * 100) / 100
+      : 0;
+  const totalRentalPrice = Math.max(0, grossRentalPrice - seasonalDiscountAmount);
 
   const totalStorageDays = hasStorage ? totalRentalDays : 0;
   const totalStoragePrice = totalStorageDays * storagePricePerDay;
 
   const subtotal = totalRentalPrice + totalStoragePrice;
   const discountedSubtotal = Math.max(0, subtotal - discountAmount);
-  const commissionPrice = Math.round(discountedSubtotal * 0.15 * 100) / 100;
+  const commissionRate = options.commissionRate ?? 15;
+  const commissionPrice = Math.round(discountedSubtotal * (commissionRate / 100) * 100) / 100;
   const totalPrice = discountedSubtotal + commissionPrice;
 
   return {
@@ -1811,6 +1874,9 @@ export function calculateTravelPrice(
     commissionPrice,
     totalPrice,
     discountAmount: discountAmount > 0 ? discountAmount : undefined,
+    seasonalDiscountAmount: seasonalDiscountAmount > 0 ? seasonalDiscountAmount : undefined,
+    seasonalDiscountName: options.seasonalDiscountName,
+    commissionRate,
   };
 }
 

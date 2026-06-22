@@ -13,65 +13,6 @@ interface DashboardStats {
   totalCommission: number;
 }
 
-const MOCK_STATS: DashboardStats = {
-  totalBookings: 45,
-  activeTrips: 12,
-  totalRevenue: 1250000,
-  totalCommission: 187500,
-};
-
-const MOCK_RECENT_BOOKINGS: Partial<TravelBooking>[] = [
-  {
-    id: 'tb_0001abc',
-    destination: { id: 'd1', name: 'Сочи', slug: 'sochi' } as any,
-    partner: { id: 'p1', name: 'Авангард-Авто' } as any,
-    total_price: 35000,
-    status: 'active',
-    start_date: '2025-06-01T10:00:00Z',
-    end_date: '2025-06-07T10:00:00Z',
-    created_at: '2025-05-20T14:30:00Z',
-  },
-  {
-    id: 'tb_0002def',
-    destination: { id: 'd2', name: 'Анапа', slug: 'anapa' } as any,
-    partner: { id: 'p2', name: 'Юг-Авто' } as any,
-    total_price: 28000,
-    status: 'confirmed',
-    start_date: '2025-06-10T10:00:00Z',
-    end_date: '2025-06-15T10:00:00Z',
-    created_at: '2025-05-19T11:00:00Z',
-  },
-  {
-    id: 'tb_0003ghi',
-    destination: { id: 'd3', name: 'Геленджик', slug: 'gelendzhik' } as any,
-    partner: { id: 'p1', name: 'Авангард-Авто' } as any,
-    total_price: 42000,
-    status: 'pending',
-    start_date: '2025-06-20T10:00:00Z',
-    end_date: '2025-06-28T10:00:00Z',
-    created_at: '2025-05-18T09:15:00Z',
-  },
-  {
-    id: 'tb_0004jkl',
-    destination: { id: 'd1', name: 'Сочи', slug: 'sochi' } as any,
-    partner: { id: 'p3', name: 'Black Sea Rent' } as any,
-    total_price: 56000,
-    status: 'completed',
-    start_date: '2025-05-10T10:00:00Z',
-    end_date: '2025-05-17T10:00:00Z',
-    created_at: '2025-04-25T16:45:00Z',
-  },
-  {
-    id: 'tb_0005mno',
-    destination: { id: 'd4', name: 'Новороссийск', slug: 'novorossiysk' } as any,
-    partner: { id: 'p2', name: 'Юг-Авто' } as any,
-    total_price: 31000,
-    status: 'cancelled',
-    start_date: '2025-05-05T10:00:00Z',
-    end_date: '2025-05-10T10:00:00Z',
-    created_at: '2025-04-20T08:30:00Z',
-  },
-];
 
 const STATUS_LABELS: Record<string, string> = {
   pending: 'Ожидает',

@@ -28,6 +28,17 @@ describe('calculateTravelPrice', () => {
     expect(result.totalPrice).toBe(10350);
   });
 
+  it('applies seasonal discount to rental', () => {
+    const result = calculateTravelPrice(mockCar, '2026-07-01', '2026-07-04', false, 0, 0, {
+      seasonalDiscountPercent: 10,
+      commissionRate: 15,
+    });
+    expect(result.seasonalDiscountAmount).toBe(900);
+    expect(result.totalRentalPrice).toBe(8100);
+    expect(result.commissionPrice).toBe(1215);
+    expect(result.totalPrice).toBe(9315);
+  });
+
   it('applies discount before commission', () => {
     const result = calculateTravelPrice(mockCar, '2026-07-01', '2026-07-04', false, 0, 1000);
     expect(result.totalPrice).toBe(9200);

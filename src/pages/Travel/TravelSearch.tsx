@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '../../components/Button/Button';
 import { useDestinations } from '../../hooks/useDestinations';
 import { useCars } from '../../hooks/useCars';
+import { getRentalDayLimits } from '../../lib/travel/settings';
 import type { PartnerCar } from '../../lib/travel/types';
 import styles from './TravelSearch.module.css';
 import sharedStyles from './Travel.module.css';
@@ -22,6 +23,11 @@ export function TravelSearch() {
   const [transmission, setTransmission] = useState('');
   const [seats, setSeats] = useState('');
   const [hasSearched, setHasSearched] = useState(false);
+  const [rentalLimits, setRentalLimits] = useState({ min: 1, max: 30 });
+
+  useEffect(() => {
+    getRentalDayLimits().then(setRentalLimits);
+  }, []);
 
   useEffect(() => {
     const today = new Date();
@@ -92,6 +98,9 @@ export function TravelSearch() {
             <div className={styles.filterGroup}>
               <label className={styles.filterLabel}>Дата выезда</label>
               <input type="date" className={styles.filterInput} value={endDate} onChange={(e) => setEndDate(e.target.value)} min={startDate} />
+              <p className={styles.filterHint}>
+                Срок аренды: от {rentalLimits.min} до {rentalLimits.max} дней
+              </p>
             </div>
             {mode === 'rental' && (
               <>

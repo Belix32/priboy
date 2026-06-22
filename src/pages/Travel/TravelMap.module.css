@@ -373,6 +373,52 @@
   background: var(--accent-hover);
 }
 
+.popupDetailBtnSecondary {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 8px;
+  padding: 6px 14px;
+  background: transparent;
+  color: var(--accent);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.officeDetail {
+  margin: 0 var(--spacing-lg) var(--spacing-lg);
+  padding: var(--spacing-md);
+  border-top: 1px solid var(--border);
+  background: var(--bg-secondary);
+  border-radius: var(--radius-md);
+}
+
+.officeDetailTitle {
+  margin: 0 0 8px;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.officeDetailMeta {
+  margin: 0 0 4px;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.officeDetailBtn {
+  margin-top: 12px;
+  width: 100%;
+  padding: 10px 14px;
+  border: none;
+  border-radius: var(--radius-md);
+  background: var(--accent);
+  color: #fff;
+  font-weight: 600;
+  cursor: pointer;
+}
+
 /* Hide Leaflet attribution control */
 :global(.leaflet-control-attribution) {
   display: none !important;

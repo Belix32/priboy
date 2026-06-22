@@ -18,12 +18,6 @@ interface StorageItem {
   partner_name: string;
 }
 
-const MOCK_STORAGE: StorageItem[] = [
-  { id: 'ST-001', booking_id: 'BK-001', car_brand: 'Toyota', car_model: 'Camry', car_color: 'Чёрный', car_license_plate: 'А123ВВ777', check_in_date: '2026-06-01', check_out_date: '2026-06-07', status: 'in_storage', partner_name: 'АвтоМоре Сочи' },
-  { id: 'ST-002', booking_id: 'BK-002', car_brand: 'Kia', car_model: 'Sportage', car_color: 'Белый', car_license_plate: 'В456СС777', check_in_date: '2026-06-10', check_out_date: '2026-06-15', status: 'pending', partner_name: 'АвтоМоре Сочи' },
-  { id: 'ST-003', booking_id: 'BK-004', car_brand: 'Nissan', car_model: 'X-Trail', car_color: 'Серый', car_license_plate: 'С789ЕЕ777', check_in_date: '2026-06-05', check_out_date: '2026-06-10', status: 'completed', partner_name: 'Южный Прокат' },
-  { id: 'ST-004', booking_id: 'BK-005', car_brand: 'Hyundai', car_model: 'Tucson', car_color: 'Синий', car_license_plate: 'К012РР777', check_in_date: '2026-07-15', check_out_date: '2026-07-22', status: 'pending', partner_name: 'АвтоМоре Сочи' },
-];
 
 const STATUS_OPTIONS = [
   { value: '', label: 'Все статусы' },

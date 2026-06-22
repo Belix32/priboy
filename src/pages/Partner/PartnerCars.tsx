@@ -7,6 +7,7 @@ import {
   deleteCar,
   updatePartnerCarAvailability,
 } from '../../lib/travel/api';
+import { uploadCarPhoto, validateCarPhotoFile } from '../../lib/travel/carPhotos';
 import type { PartnerCar } from '../../lib/travel/types';
 import { PartnerLayout } from './PartnerLayout';
 import styles from './Partner.module.css';
@@ -67,6 +68,8 @@ export function PartnerCars() {
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [viewItem, setViewItem] = useState<PartnerCarItem | null>(null);
   const [formData, setFormData] = useState<CarFormData>(emptyForm);
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [photoError, setPhotoError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!partnerId) {
@@ -118,6 +121,14 @@ export function PartnerCars() {
 
   const handleAddItem = async () => {
     if (!partnerId) return;
+    if (photoFile) {
+      const validation = validateCarPhotoFile(photoFile);
+      if (validation) {
+        setPhotoError(validation);
+        return;
+      }
+    }
+    setPhotoError(null);
     const created = await createCar({
       partner_id: partnerId,
       brand: formData.brand,
@@ -134,14 +145,36 @@ export function PartnerCars() {
       is_active: true,
     });
     if (created) {
-      setCars((prev) => [created, ...prev]);
+      let saved = created;
+      if (photoFile) {
+        const imageUrl = await uploadCarPhoto(photoFile, partnerId, created.id);
+        await updateCar(created.id, { image: imageUrl });
+        saved = { ...created, image: imageUrl };
+      }
+      setCars((prev) => [saved, ...prev]);
       setAddModalOpen(false);
       setFormData(emptyForm);
+      setPhotoFile(null);
     }
   };
 
   const handleUpdateItem = async () => {
-    if (!editItem) return;
+    if (!editItem || !partnerId) return;
+    if (photoFile) {
+      const validation = validateCarPhotoFile(photoFile);
+      if (validation) {
+        setPhotoError(validation);
+        return;
+      }
+      const imageUrl = await uploadCarPhoto(photoFile, partnerId, editItem.id);
+      const updated = { ...editItem, image: imageUrl };
+      await updateCar(editItem.id, { image: imageUrl });
+      setCars((prev) => prev.map((c) => (c.id === editItem.id ? updated : c)));
+      setEditItem(null);
+      setPhotoFile(null);
+      setPhotoError(null);
+      return;
+    }
     await updateCar(editItem.id, editItem);
     setCars((prev) => prev.map((c) => (c.id === editItem.id ? editItem : c)));
     setEditItem(null);
@@ -789,6 +822,18 @@ export function PartnerCars() {
                       />
                       Доступен для бронирования
                     </label>
+                  </div>
+                  <div className={`${styles.formGroup} ${styles.formGroupFull}`}>
+                    <label>Фото автомобиля</label>
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp"
+                      onChange={(e) => {
+                        setPhotoFile(e.target.files?.[0] || null);
+                        setPhotoError(null);
+                      }}
+                    />
+                    {photoError && <p style={{ color: '#dc2626', fontSize: 13 }}>{photoError}</p>}
                   </div>
                   <div className={`${styles.formGroup} ${styles.formGroupFull}`}>
                     <label>Описание</label>

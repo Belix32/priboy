@@ -345,6 +345,30 @@
   color: var(--error);
 }
 
+.paymentBadge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 10px;
+  border-radius: 50px;
+  font-size: var(--font-size-caption);
+  font-weight: 600;
+}
+
+.paymentPending {
+  background: color-mix(in srgb, #f59e0b 15%, transparent);
+  color: #f59e0b;
+}
+
+.paymentPaid {
+  background: color-mix(in srgb, var(--success) 15%, transparent);
+  color: var(--success);
+}
+
+.paymentRefunded {
+  background: color-mix(in srgb, #6b7280 15%, transparent);
+  color: #6b7280;
+}
+
 .tripDetails {
   padding: 0 var(--spacing-lg) var(--spacing-sm);
 }
