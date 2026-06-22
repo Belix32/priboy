@@ -129,11 +129,6 @@ export async function incrementPromoUse(promoId: string): Promise<void> {
   }
 
   const supabase = getSupabaseClient();
-  const { data } = await supabase.from('promo_codes').select('used_count').eq('id', promoId).single();
-  if (!data) return;
-  const { error } = await supabase
-    .from('promo_codes')
-    .update({ used_count: Number(data.used_count) + 1 })
-    .eq('id', promoId);
+  const { error } = await supabase.rpc('increment_promo_use', { p_promo_id: promoId });
   throwIfSupabaseError(error, 'Не удалось применить промокод');
 }

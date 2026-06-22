@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { getYooKassaCredentials } from './yookassa.js';
 
 const YOOKASSA_API = 'https://api.yookassa.ru/v3';
 
@@ -25,7 +26,8 @@ export default async function handler(req, res) {
 
   const shopId = process.env.YOOKASSA_SHOP_ID;
   const secretKey = process.env.YOOKASSA_SECRET_KEY;
-  if (!shopId || !secretKey) {
+  const creds = getYooKassaCredentials();
+  if (!creds) {
     return res.status(503).json({ error: 'YooKassa not configured' });
   }
 
@@ -54,13 +56,13 @@ export default async function handler(req, res) {
 
     const amount = Number(booking.total_price).toFixed(2);
     const idempotenceKey = `${bookingId}-${Date.now()}`;
-    const returnUrl = `${req.headers.origin || 'https://priboy-six.vercel.app'}/booking/success?id=${bookingId}`;
+    const returnUrl = `${req.headers.origin || 'https://priboy-six.vercel.app'}/booking/success?id=${bookingId}&awaiting_payment=1`;
 
     const ykRes = await fetch(`${YOOKASSA_API}/payments`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Basic ${Buffer.from(`${shopId}:${secretKey}`).toString('base64')}`,
+        Authorization: `Basic ${Buffer.from(`${creds.shopId}:${creds.secretKey}`).toString('base64')}`,
         'Idempotence-Key': idempotenceKey,
       },
       body: JSON.stringify({

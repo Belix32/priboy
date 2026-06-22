@@ -18,7 +18,7 @@ priboy/
 ├── api/payments/           # Vercel serverless: ЮKassa create + webhook
 └── supabase/
     ├── DEPLOY_ALL.sql      # Полный деплой схемы
-    └── migrations/         # 001–005 по порядку
+    └── migrations/         # 001–006 по порядку
 ```
 
 ## Запуск
@@ -33,7 +33,7 @@ npm run dev
 
 ## Supabase
 
-1. Выполните [`supabase/DEPLOY_ALL.sql`](supabase/DEPLOY_ALL.sql) в SQL Editor (включает миграции 001–005).
+1. Выполните [`supabase/DEPLOY_ALL.sql`](supabase/DEPLOY_ALL.sql) в SQL Editor (включает миграции 001–006).
 2. В Auth: Email provider ON, sign-up ON.
 3. Env на Vercel: `VITE_SUPABASE_*`, `YOOKASSA_SHOP_ID`, `YOOKASSA_SECRET_KEY`, `SUPABASE_SERVICE_ROLE_KEY`.
 

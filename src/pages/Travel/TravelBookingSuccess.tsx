@@ -11,8 +11,15 @@ import type { TravelBooking } from '../../lib/travel/types';
 import styles from './TravelBookingSuccess.module.css';
 import sharedStyles from './Travel.module.css';
 
+const POLL_INTERVAL_MS = 2000;
+const MAX_POLL_ATTEMPTS = 20;
+
 function formatDate(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' });
+}
+
+function isBookingSettled(booking: TravelBooking): boolean {
+  return booking.payment_status === 'paid' || booking.status === 'confirmed' || booking.status === 'active';
 }
 
 export function TravelBookingSuccess() {
@@ -20,6 +27,7 @@ export function TravelBookingSuccess() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const bookingId = searchParams.get('id');
+  const awaitingPayment = searchParams.get('awaiting_payment') === '1';
 
   const [booking, setBooking] = useState<TravelBooking | null>(null);
   const [loading, setLoading] = useState(true);
@@ -27,6 +35,7 @@ export function TravelBookingSuccess() {
   const [qrCodeUrl, setQrCodeUrl] = useState('');
   const [payLoading, setPayLoading] = useState(false);
   const [payError, setPayError] = useState<string | null>(null);
+  const [polling, setPolling] = useState(false);
 
   useEffect(() => {
     if (!bookingId) {
@@ -34,14 +43,60 @@ export function TravelBookingSuccess() {
       setLoading(false);
       return;
     }
-    getTravelBookingById(bookingId)
-      .then((found) => {
-        if (found) setBooking(found);
-        else setError('Бронирование не найдено');
-      })
-      .catch((err) => setError(getErrorMessage(err, 'Не удалось загрузить бронирование')))
-      .finally(() => setLoading(false));
-  }, [bookingId]);
+
+    let cancelled = false;
+    let pollTimer: ReturnType<typeof setInterval> | null = null;
+    let attempts = 0;
+
+    const finishPolling = () => {
+      if (pollTimer) clearInterval(pollTimer);
+      setPolling(false);
+    };
+
+    const startPolling = () => {
+      setPolling(true);
+      pollTimer = setInterval(async () => {
+        if (cancelled) return;
+        attempts += 1;
+        try {
+          const found = await getTravelBookingById(bookingId);
+          if (!found) return;
+          setBooking(found);
+          if (isBookingSettled(found) || attempts >= MAX_POLL_ATTEMPTS) {
+            finishPolling();
+          }
+        } catch {
+          if (attempts >= MAX_POLL_ATTEMPTS) finishPolling();
+        }
+      }, POLL_INTERVAL_MS);
+    };
+
+    (async () => {
+      try {
+        const found = await getTravelBookingById(bookingId);
+        if (cancelled) return;
+        if (found) {
+          setBooking(found);
+          const shouldPoll =
+            awaitingPayment || (found.status === 'pending' && found.payment_status === 'pending');
+          if (shouldPoll && !isBookingSettled(found)) {
+            startPolling();
+          }
+        } else {
+          setError('Бронирование не найдено');
+        }
+      } catch (err) {
+        if (!cancelled) setError(getErrorMessage(err, 'Не удалось загрузить бронирование'));
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+      if (pollTimer) clearInterval(pollTimer);
+    };
+  }, [bookingId, awaitingPayment]);
 
   useEffect(() => {
     if (!booking || (booking.status !== 'confirmed' && booking.status !== 'active')) return;
@@ -117,9 +172,11 @@ export function TravelBookingSuccess() {
           {isPending ? 'Бронирование оформлено' : 'Бронирование подтверждено!'}
         </h1>
         <p className={styles.subtitle}>
-          {isPending
-            ? 'Ожидайте подтверждения партнёра. После подтверждения или оплаты станет доступен QR-код.'
-            : 'Покажите QR-код при получении автомобиля'}
+          {polling
+            ? 'Проверяем статус оплаты…'
+            : isPending
+              ? 'Ожидайте подтверждения партнёра. После подтверждения или оплаты станет доступен QR-код.'
+              : 'Покажите QR-код при получении автомобиля'}
         </p>
 
         {isConfirmed && qrCodeUrl && (
@@ -141,11 +198,14 @@ export function TravelBookingSuccess() {
             <p className={styles.storageInfo}>Парковка не требуется</p>
           )}
           <p className={styles.total}>Итого: {booking.total_price.toLocaleString('ru-RU')} ₽</p>
+          <p className={styles.storageInfo}>
+            Оплата: {booking.payment_status === 'paid' ? 'Оплачено' : 'Ожидает'}
+          </p>
         </div>
 
         {isPending && booking.payment_status === 'pending' && isSupabaseConfigured() && (
           <div className={styles.paySection}>
-            <Button variant="primary" onClick={handlePayOnline} disabled={payLoading}>
+            <Button variant="primary" onClick={handlePayOnline} disabled={payLoading || polling}>
               {payLoading ? 'Переход к оплате...' : 'Оплатить онлайн (ЮKassa)'}
             </Button>
             <p className={styles.payNote}>Или оплатите при получении авто в офисе партнёра</p>

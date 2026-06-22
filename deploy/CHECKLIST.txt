@@ -46,6 +46,18 @@ GitHub:
   VITE_SUPABASE_ANON_KEY
   VITE_ADMIN_EMAIL
 
+Server-side (Production only, НЕ VITE_*):
+  SUPABASE_URL              (= тот же URL что VITE_SUPABASE_URL)
+  SUPABASE_SERVICE_ROLE_KEY
+  YOOKASSA_SHOP_ID
+  YOOKASSA_SECRET_KEY
+
+ЮKassa webhook URL:
+  https://priboy-six.vercel.app/api/payments/webhook
+
+Миграция 006 (если DEPLOY_ALL уже был раньше):
+  supabase/migrations/006_sprint1_hardening.sql
+
 Vercel → Settings → Environment Variables → Add
 Выберите: Production + Preview + Development
 

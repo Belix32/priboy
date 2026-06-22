@@ -1159,6 +1159,13 @@ export async function createTravelBooking(
   const profile = await getCurrentUserProfile();
   const clientName = profile?.name || null;
 
+  const available = await checkCarAvailability(form.car_id, form.start_date, form.end_date);
+  if (!available) {
+    throw new Error(
+      'Автомобиль уже забронирован на выбранные даты. Выберите другие даты или другой автомобиль.',
+    );
+  }
+
   if (!isSupabaseConfigured()) {
     const all = getLocalData<TravelBooking>(LS_BOOKINGS);
     const newBooking: TravelBooking = {
@@ -1471,20 +1478,32 @@ export async function checkCarAvailability(
   }
 
   const supabase = getSupabaseClient();
-  const { data, error } = await supabase
-    .from('travel_bookings')
-    .select('id')
-    .eq('car_id', carId)
-    .in('status', ['pending', 'confirmed', 'active'])
-    .or(`start_date.lte.${endDate},end_date.gte.${startDate}`)
-    .limit(1);
+  const { data, error } = await supabase.rpc('is_car_available_for_dates', {
+    p_car_id: carId,
+    p_start_date: startDate,
+    p_end_date: endDate,
+    p_exclude_booking_id: null,
+  });
 
   if (error) {
-    console.error('Error checking car availability:', error);
-    return true; // Allow on error
+    const { data: bookings, error: fetchError } = await supabase
+      .from('travel_bookings')
+      .select('start_date, end_date')
+      .eq('car_id', carId)
+      .in('status', ['pending', 'confirmed', 'active']);
+
+    if (fetchError) {
+      throwIfSupabaseError(fetchError, 'Не удалось проверить доступность автомобиля');
+    }
+
+    const overlap = (bookings || []).some(
+      (b: { start_date: string; end_date: string }) =>
+        b.start_date < endDate && b.end_date > startDate,
+    );
+    return !overlap;
   }
 
-  return !data || data.length === 0;
+  return data === true;
 }
 
 // ============================================================================
