@@ -1,55 +1,71 @@
-const CACHE_NAME = 'priboi-shell-v2';
-const SHELL = ['/', '/index.html', '/manifest.webmanifest', '/icons/icon-192.svg', '/icons/icon-512.svg'];
+const CACHE_NAME = 'priboi-shell-v4';
+const PRECACHE = ['/manifest.webmanifest', '/icons/icon-192.svg', '/icons/icon-512.svg'];
+
+function isAssetPath(pathname) {
+  return pathname.startsWith('/assets/');
+}
+
+function isValidAssetResponse(response) {
+  if (!response.ok) return false;
+  const type = response.headers.get('content-type') || '';
+  return !type.includes('text/html');
+}
+
+async function bustCachesAndReloadClients() {
+  const keys = await caches.keys();
+  await Promise.all(keys.map((key) => caches.delete(key)));
+  const clients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+  await Promise.all(clients.map((client) => client.navigate(client.url)));
+}
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(SHELL)).then(() => self.skipWaiting()),
+    caches.open(CACHE_NAME).then((cache) => cache.addAll(PRECACHE)).then(() => self.skipWaiting()),
   );
 });
 
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((keys) =>
-      Promise.all(keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k))),
+      Promise.all(keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key))),
     ).then(() => self.clients.claim()),
   );
 });
 
-function isNavigationRequest(request, url) {
-  return request.mode === 'navigate' || url.pathname === '/' || url.pathname.endsWith('.html');
-}
-
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
+
   const url = new URL(event.request.url);
   if (url.origin !== self.location.origin) return;
 
-  if (isNavigationRequest(event.request, url)) {
+  if (event.request.mode === 'navigate') {
     event.respondWith(
-      fetch(event.request)
-        .then((response) => {
-          const copy = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
-          return response;
-        })
-        .catch(() => caches.match('/index.html')),
+      fetch(event.request).catch(() => caches.match('/index.html')),
     );
     return;
   }
 
-  event.respondWith(
-    caches.match(event.request).then((cached) => {
-      const networkFetch = fetch(event.request)
-        .then((response) => {
-          if (response.ok && url.pathname.startsWith('/assets/')) {
-            const copy = response.clone();
-            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
+  if (isAssetPath(url.pathname)) {
+    event.respondWith(
+      (async () => {
+        try {
+          const response = await fetch(event.request);
+          if (!isValidAssetResponse(response)) {
+            await bustCachesAndReloadClients();
+            return response;
           }
+          const copy = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
           return response;
-        })
-        .catch(() => cached);
+        } catch {
+          const cached = await caches.match(event.request);
+          if (cached) return cached;
+          throw new Error('asset_fetch_failed');
+        }
+      })(),
+    );
+    return;
+  }
 
-      return cached || networkFetch;
-    }),
-  );
+  event.respondWith(fetch(event.request));
 });

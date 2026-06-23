@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
+import type { AuthChangeEvent, Session } from '@supabase/supabase-js';
 import { getSupabaseClient, isSupabaseConfigured } from '../lib/supabase';
 import { mapAuthError, isDuplicateSignup } from '../lib/authErrors';
 import type { Profile } from '../lib/travel/types';
@@ -182,6 +183,23 @@ function profileToUser(profile: Profile, email: string): User {
   };
 }
 
+const AUTH_SESSION_TIMEOUT_MS = 5_000;
+
+async function getSessionWithTimeout(): Promise<{ data: { session: Session | null } }> {
+  const supabase = getSupabaseClient();
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+
+  const timeout = new Promise<never>((_, reject) => {
+    timeoutId = setTimeout(() => reject(new Error('auth_timeout')), AUTH_SESSION_TIMEOUT_MS);
+  });
+
+  try {
+    return await Promise.race([supabase.auth.getSession(), timeout]);
+  } finally {
+    if (timeoutId) clearTimeout(timeoutId);
+  }
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(() => loadUserSession());
   const [isLoading, setIsLoading] = useState(() => loadUserSession() === null);
@@ -189,8 +207,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const refreshProfile = useCallback(async () => {
     if (!isSupabaseConfigured()) return;
     try {
-      const supabase = getSupabaseClient();
-      const { data: sessionData } = await supabase.auth.getSession();
+      const { data: sessionData } = await getSessionWithTimeout();
       const session = sessionData?.session;
       if (!session?.user) return;
 
@@ -213,8 +230,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       try {
-        const supabase = getSupabaseClient();
-        const { data: sessionData } = await supabase.auth.getSession();
+        const { data: sessionData } = await getSessionWithTimeout();
         if (cancelled) return;
 
         if (sessionData?.session?.user) {
@@ -224,12 +240,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             setUser(userObj);
             saveUserSession(userObj);
           }
-        } else {
+        } else if (!loadUserSession()) {
           setUser(null);
           clearSession();
         }
       } catch {
-        /* keep cached user on network errors */
+        /* keep cached user on network timeouts */
       } finally {
         if (!cancelled) setIsLoading(false);
       }
@@ -238,16 +254,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (isSupabaseConfigured()) {
       const supabase = getSupabaseClient();
       const { data: { subscription } } = supabase.auth.onAuthStateChange(
-        async (_event: string, session: { user: { id: string; email?: string } } | null) => {
-          if (session?.user) {
-            const email = session.user.email || '';
-            const userObj = await loadUserFromSession(email, session.user.id);
-            setUser(userObj);
-            saveUserSession(userObj);
-          } else {
+        (event: AuthChangeEvent, session: Session | null) => {
+          if (event === 'SIGNED_OUT') {
             setUser(null);
             clearSession();
+            return;
           }
+
+          if (!session?.user) return;
+
+          const email = session.user.email || '';
+          void loadUserFromSession(email, session.user.id).then((userObj) => {
+            setUser(userObj);
+            saveUserSession(userObj);
+          });
         },
       );
 

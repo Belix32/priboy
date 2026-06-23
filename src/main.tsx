@@ -6,26 +6,33 @@ import { ThemeProvider } from './contexts/ThemeContext'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { seedDemoDataIfNeeded } from './lib/travel/seed'
 import { isSupabaseConfigured } from './lib/supabase'
+import { ensureFreshClient } from './lib/appVersion'
 import App from './App'
 import './styles/globals.css'
 import { registerServiceWorker } from './lib/pwa'
 
-if (!isSupabaseConfigured()) {
-  seedDemoDataIfNeeded();
+async function bootstrap() {
+  await ensureFreshClient()
+
+  if (!isSupabaseConfigured()) {
+    seedDemoDataIfNeeded()
+  }
+
+  registerServiceWorker()
+
+  createRoot(document.getElementById('root')!).render(
+    <StrictMode>
+      <ErrorBoundary>
+        <BrowserRouter>
+          <AuthProvider>
+            <ThemeProvider>
+              <App />
+            </ThemeProvider>
+          </AuthProvider>
+        </BrowserRouter>
+      </ErrorBoundary>
+    </StrictMode>,
+  )
 }
 
-registerServiceWorker();
-
-createRoot(document.getElementById('root')!).render(
-  <StrictMode>
-    <ErrorBoundary>
-      <BrowserRouter>
-        <AuthProvider>
-          <ThemeProvider>
-            <App />
-          </ThemeProvider>
-        </AuthProvider>
-      </BrowserRouter>
-    </ErrorBoundary>
-  </StrictMode>,
-)
+void bootstrap()

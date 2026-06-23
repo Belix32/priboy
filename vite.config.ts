@@ -1,8 +1,29 @@
+import { readFileSync, writeFileSync } from 'node:fs'
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+import pkg from './package.json'
+
+const appBuildId =
+  process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 12) ||
+  `${pkg.version}-dev`
 
 export default defineConfig({
-  plugins: [react()],
+  define: {
+    'import.meta.env.VITE_APP_BUILD_ID': JSON.stringify(appBuildId),
+  },
+  plugins: [
+    react(),
+    {
+      name: 'version-manifest',
+      closeBundle() {
+        const manifestPath = 'dist/manifest.webmanifest'
+        const source = JSON.parse(readFileSync('public/manifest.webmanifest', 'utf8')) as Record<string, unknown>
+        source.start_url = `/?v=${appBuildId}`
+        source.id = `priboi-${appBuildId}`
+        writeFileSync(manifestPath, `${JSON.stringify(source, null, 2)}\n`)
+      },
+    },
+  ],
   server: {
     headers: {
       'X-Content-Type-Options': 'nosniff',
