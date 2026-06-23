@@ -26,6 +26,10 @@ export function mapAuthError(
       : 'Ошибка сети. Проверьте подключение';
   }
 
+  if (message.includes('504') || message.includes('gateway timeout')) {
+    return 'Сервер отвечает слишком долго. Попробуйте ещё раз через минуту';
+  }
+
   if (message.includes('invalid login credentials') || message.includes('invalid credentials')) {
     return context === 'register'
       ? 'Не удалось войти после регистрации. Если включено подтверждение email — подтвердите почту и войдите вручную'

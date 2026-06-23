@@ -2,7 +2,11 @@
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/api/$1" },
     {
-      "source": "/((?!api/|assets/|icons/|sw\\.js|manifest\\.webmanifest).*)",
+      "source": "/supabase/:path*",
+      "destination": "https://cuuwyvhoxdyolsqvjtgh.supabase.co/:path*"
+    },
+    {
+      "source": "/((?!api/|supabase/|assets/|icons/|sw\\.js|manifest\\.webmanifest).*)",
       "destination": "/index.html"
     }
   ],

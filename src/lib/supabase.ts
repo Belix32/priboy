@@ -19,6 +19,20 @@ function fetchWithTimeout(input: RequestInfo | URL, init?: RequestInit): Promise
   return fetch(input, { ...init, signal: controller.signal }).finally(() => clearTimeout(timeoutId));
 }
 
+function resolveSupabaseUrl(): string {
+  const configured = import.meta.env.VITE_SUPABASE_URL;
+  if (!configured) {
+    throw new Error('Supabase not configured. Set VITE_SUPABASE_URL');
+  }
+
+  // Route browser traffic through our domain — *.supabase.co is often blocked in Russia.
+  if (import.meta.env.VITE_SUPABASE_USE_PROXY === 'true' && typeof window !== 'undefined') {
+    return `${window.location.origin}/supabase`;
+  }
+
+  return configured;
+}
+
 export function isSupabaseConfigured(): boolean {
   const url = import.meta.env.VITE_SUPABASE_URL;
   const key = import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -29,14 +43,13 @@ export function isSupabaseConfigured(): boolean {
 export function getSupabaseClient(): any {
   if (supabaseClient) return supabaseClient;
 
-  const url = import.meta.env.VITE_SUPABASE_URL;
   const key = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-  if (!url || !key) {
-    throw new Error('Supabase not configured. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY');
+  if (!key) {
+    throw new Error('Supabase not configured. Set VITE_SUPABASE_ANON_KEY');
   }
 
-  supabaseClient = createClient(url, key, {
+  supabaseClient = createClient(resolveSupabaseUrl(), key, {
     auth: { persistSession: true, autoRefreshToken: true },
     global: { fetch: fetchWithTimeout },
   });

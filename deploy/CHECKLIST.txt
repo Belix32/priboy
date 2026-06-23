@@ -44,6 +44,7 @@ GitHub:
 
   VITE_SUPABASE_URL
   VITE_SUPABASE_ANON_KEY
+  VITE_SUPABASE_USE_PROXY=true   ← обход блокировок *.supabase.co в РФ
   VITE_ADMIN_EMAIL
 
 Server-side (Production only, НЕ VITE_*):

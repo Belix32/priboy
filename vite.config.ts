@@ -7,6 +7,10 @@ const appBuildId =
   process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 12) ||
   `${pkg.version}-dev`
 
+const supabaseDirectUrl =
+  process.env.VITE_SUPABASE_URL ||
+  'https://cuuwyvhoxdyolsqvjtgh.supabase.co'
+
 export default defineConfig({
   define: {
     'import.meta.env.VITE_APP_BUILD_ID': JSON.stringify(appBuildId),
@@ -25,6 +29,13 @@ export default defineConfig({
     },
   ],
   server: {
+    proxy: {
+      '/supabase': {
+        target: supabaseDirectUrl,
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/supabase/, ''),
+      },
+    },
     headers: {
       'X-Content-Type-Options': 'nosniff',
       'X-Frame-Options': 'DENY',

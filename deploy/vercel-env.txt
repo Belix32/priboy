@@ -4,4 +4,6 @@
 
 VITE_SUPABASE_URL=https://YOUR_PROJECT.supabase.co
 VITE_SUPABASE_ANON_KEY=your-anon-or-publishable-key
+# Обязательно для Production — обход блокировок *.supabase.co в РФ
+VITE_SUPABASE_USE_PROXY=true
 VITE_ADMIN_EMAIL=admin@priboi.ru
