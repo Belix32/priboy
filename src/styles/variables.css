@@ -48,6 +48,11 @@
   --container-max: 1200px;
   --container-padding: 24px;
   --header-height: 72px;
+  --touch-target-min: 44px;
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
 
   --bg-modal: #ffffff;
   --bg-modal-footer: #fafafa;
@@ -97,5 +102,18 @@
     --font-size-h3: 18px;
     --container-padding: 16px;
     --header-height: 64px;
+    --spacing-3xl: 48px;
+    --spacing-4xl: 64px;
+  }
+}
+
+@media (max-width: 480px) {
+  :root {
+    --font-size-h1: 30px;
+    --font-size-h2: 24px;
+    --font-size-h3: 17px;
+    --container-padding: 12px;
+    --spacing-xl: 24px;
+    --spacing-2xl: 32px;
   }
 }

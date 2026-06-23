@@ -484,3 +484,35 @@
   font-size: 13px;
   color: var(--text-secondary);
 }
+
+@media (max-width: 768px) {
+  .carFormGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .formActions {
+    flex-direction: column;
+  }
+
+  .submitButton {
+    width: 100%;
+  }
+}
+
+@media (max-width: 480px) {
+  .promoRow {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .promoInput {
+    min-height: var(--touch-target-min);
+    font-size: 16px;
+  }
+
+  .priceRow {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+  }
+}

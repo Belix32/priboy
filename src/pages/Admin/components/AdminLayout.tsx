@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useTheme } from '../../../contexts/ThemeContext';
@@ -76,11 +77,14 @@ export function AdminLayout({ children }: AdminLayoutProps) {
   const { isDark, toggleTheme } = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const handleLogout = async () => {
     await logout();
     navigate('/');
   };
+
+  const closeSidebar = () => setSidebarOpen(false);
 
   if (!hasAdminAccess) {
     return (
@@ -96,7 +100,16 @@ export function AdminLayout({ children }: AdminLayoutProps) {
 
   return (
     <div className="admin-layout">
-      <aside className="admin-sidebar">
+      {sidebarOpen && (
+        <button
+          type="button"
+          className="admin-sidebar-overlay"
+          onClick={closeSidebar}
+          aria-label="Закрыть меню"
+        />
+      )}
+
+      <aside className={`admin-sidebar ${sidebarOpen ? 'admin-sidebar-open' : ''}`}>
         <div className="admin-sidebar-header">
           <div className="admin-brand">
             <span className="admin-brand-name">Прибой</span>
@@ -114,6 +127,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
                   to={item.path}
                   className={({ isActive }) => `admin-nav-item ${isActive ? 'active' : ''}`}
                   end={item.path === '/admin'}
+                  onClick={closeSidebar}
                 >
                   <span className="admin-nav-icon">{item.icon}</span>
                   <span className="admin-nav-label">{item.label}</span>
@@ -136,9 +150,19 @@ export function AdminLayout({ children }: AdminLayoutProps) {
 
       <main className="admin-main">
         <header className="admin-header">
-          <div>
-            <p className="admin-header-breadcrumb">Админ-панель</p>
-            <h1>{pageTitle}</h1>
+          <div className="admin-header-left">
+            <button
+              type="button"
+              className="admin-mobile-toggle"
+              onClick={() => setSidebarOpen(!sidebarOpen)}
+              aria-label={sidebarOpen ? 'Закрыть меню' : 'Открыть меню'}
+            >
+              {sidebarOpen ? '✕' : '☰'}
+            </button>
+            <div>
+              <p className="admin-header-breadcrumb">Админ-панель</p>
+              <h1>{pageTitle}</h1>
+            </div>
           </div>
           <div className="admin-header-actions">
             <button

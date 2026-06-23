@@ -515,11 +515,17 @@
   .tabs {
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+
+  .tabs::-webkit-scrollbar {
+    display: none;
   }
 
   .tab {
     white-space: nowrap;
     padding: var(--spacing-sm) var(--spacing-md);
+    min-height: var(--touch-target-min);
   }
 
   .tripHeader {
@@ -535,6 +541,18 @@
   .tripActions {
     padding: var(--spacing-sm) var(--spacing-md) var(--spacing-md);
     flex-direction: column;
+  }
+
+  .tripActions button {
+    width: 100%;
+  }
+
+  .sectionDesc {
+    margin-left: 0;
+  }
+
+  .container {
+    padding-bottom: calc(var(--spacing-lg) + var(--safe-bottom));
   }
 
   .tripDestination {
@@ -602,4 +620,26 @@
   font-family: inherit;
   font-size: var(--font-size-small);
   resize: vertical;
+}
+
+@media (max-width: 480px) {
+  .tripDetailRow {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+  }
+
+  .reviewSection {
+    margin-left: var(--spacing-md);
+    margin-right: var(--spacing-md);
+  }
+
+  .starBtn {
+    font-size: 32px;
+    min-width: var(--touch-target-min);
+    min-height: var(--touch-target-min);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
 }

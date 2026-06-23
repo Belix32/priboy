@@ -5,6 +5,7 @@
   top: 0;
   z-index: 100;
   height: var(--header-height);
+  padding-top: var(--safe-top);
   transition:
     background var(--transition-normal),
     border-color var(--transition-normal),
@@ -413,9 +414,9 @@
   flex-direction: column;
   justify-content: center;
   gap: 5px;
-  width: 40px;
-  height: 40px;
-  padding: 8px;
+  width: var(--touch-target-min);
+  height: var(--touch-target-min);
+  padding: 10px;
   background: none;
   border: 1px solid var(--border);
   border-radius: var(--radius-full);
@@ -525,6 +526,11 @@
 
   .phone span {
     display: none;
+  }
+
+  .loginBtn {
+    min-height: var(--touch-target-min);
+    padding: 10px 14px !important;
   }
 
   .burger {

@@ -411,6 +411,229 @@
   font-weight: 600;
 }
 
+/* Analytics page */
+.analyticsTimeRange {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.analyticsTimeBtn {
+  padding: 10px 16px;
+  min-height: var(--touch-target-min);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-elevated);
+  color: var(--text-secondary);
+  font-size: var(--font-size-small);
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.analyticsTimeBtnActive {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+.analyticsGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.analyticsCard {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 20px;
+  box-shadow: var(--shadow-sm);
+  min-width: 0;
+}
+
+.analyticsCardTitle {
+  margin: 0 0 16px;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.chartContainer,
+.donutContainer {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.donutLegend {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.donutLegendItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--font-size-small);
+}
+
+.donutDot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.donutLabel {
+  flex: 1;
+  color: var(--text-secondary);
+}
+
+.donutValue {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.analyticsChartFooter {
+  margin-top: 12px;
+  font-size: var(--font-size-small);
+  color: var(--text-secondary);
+}
+
+.analyticsList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.analyticsListItem {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 12px;
+  align-items: center;
+}
+
+.analyticsListRank {
+  font-weight: 700;
+  color: var(--accent);
+  min-width: 28px;
+}
+
+.analyticsListInfo {
+  min-width: 0;
+}
+
+.analyticsListName {
+  display: block;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
+.analyticsListBar {
+  height: 6px;
+  background: var(--bg-elevated);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+}
+
+.analyticsListBarFill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: var(--radius-full);
+}
+
+.analyticsListStats {
+  text-align: right;
+  font-size: var(--font-size-small);
+}
+
+.analyticsListRevenue {
+  display: block;
+  font-weight: 600;
+  color: var(--success);
+}
+
+.analyticsTable {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.analyticsTable table {
+  width: 100%;
+  min-width: 480px;
+  border-collapse: collapse;
+  font-size: var(--font-size-small);
+}
+
+.analyticsTable th,
+.analyticsTable td {
+  padding: 10px 12px;
+  text-align: left;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.fleetGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.fleetStat {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px;
+  background: var(--bg-elevated);
+  border-radius: var(--radius-sm);
+  text-align: center;
+}
+
+.fleetStatValue {
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+.fleetStatLabel {
+  font-size: var(--font-size-caption);
+  color: var(--text-secondary);
+}
+
+.fleetUtilization {
+  grid-column: 1 / -1;
+  margin-top: 4px;
+}
+
+.fleetUtilBar {
+  height: 8px;
+  background: var(--bg-elevated);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+}
+
+.fleetUtilFill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: var(--radius-full);
+}
+
+.fleetUtilInfo {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 8px;
+  font-size: var(--font-size-small);
+  color: var(--text-secondary);
+}
+
+.fleetUtilPercent {
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
 /* Responsive */
 @media (max-width: 1024px) {
   .travelStatsGrid {
@@ -460,6 +683,23 @@
   .travelActions {
     flex-direction: column;
   }
+
+  .analyticsGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .fleetGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .analyticsListItem {
+    grid-template-columns: auto 1fr;
+  }
+
+  .analyticsListStats {
+    grid-column: 2;
+    text-align: left;
+  }
 }
 
 @media (max-width: 480px) {
@@ -469,5 +709,18 @@
 
   .travelQuickLinks {
     grid-template-columns: 1fr;
+  }
+
+  .fleetGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .analyticsTimeRange {
+    width: 100%;
+  }
+
+  .analyticsTimeBtn {
+    flex: 1;
+    text-align: center;
   }
 }

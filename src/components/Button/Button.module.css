@@ -105,3 +105,20 @@
 .fullWidth {
   width: 100%;
 }
+
+@media (max-width: 768px) {
+  .button {
+    min-height: var(--touch-target-min);
+    padding: 12px var(--spacing-md);
+  }
+
+  .small {
+    min-height: 40px;
+    padding: 10px var(--spacing-sm);
+  }
+
+  .large {
+    min-height: 48px;
+    padding: 14px var(--spacing-lg);
+  }
+}

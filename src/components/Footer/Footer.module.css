@@ -83,6 +83,11 @@
 }
 
 @media (max-width: 768px) {
+  .footer {
+    padding: var(--spacing-2xl) 0 var(--spacing-lg);
+    padding-bottom: calc(var(--spacing-lg) + var(--safe-bottom));
+  }
+
   .grid {
     grid-template-columns: 1fr 1fr;
     gap: var(--spacing-xl);
@@ -96,5 +101,16 @@
     flex-direction: column;
     gap: var(--spacing-sm);
     text-align: center;
+  }
+}
+
+@media (max-width: 480px) {
+  .grid {
+    grid-template-columns: 1fr;
+    gap: var(--spacing-lg);
+  }
+
+  .tagline {
+    max-width: none;
   }
 }
