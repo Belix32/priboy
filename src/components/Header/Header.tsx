@@ -69,6 +69,141 @@ function NavLinks({ isSearchActive, searchMode, onNavigate, onHashNav }: NavLink
   );
 }
 
+function MobileNavDrawer({
+  isSearchActive,
+  searchMode,
+  onNavigate,
+  onHashNav,
+}: NavLinksProps) {
+  return (
+    <nav className={styles.drawer} aria-label="Мобильная навигация">
+      <div className={styles.drawerSection}>
+        <p className={styles.drawerLabel}>Услуги</p>
+        {PRIMARY_NAV.map((link) => {
+          const isActive = isSearchActive && searchMode === link.mode;
+          return (
+            <button
+              key={link.label}
+              type="button"
+              className={`${styles.drawerItem} ${isActive ? styles.drawerItemActive : ''}`}
+              onClick={() => onNavigate(link.to)}
+            >
+              {link.label}
+            </button>
+          );
+        })}
+      </div>
+
+      <div className={styles.drawerSection}>
+        <p className={styles.drawerLabel}>Информация</p>
+        {SECONDARY_NAV.map((link) => (
+          <button
+            key={link.label}
+            type="button"
+            className={styles.drawerItem}
+            onClick={() => {
+              if (link.hash) {
+                onHashNav(link.hash);
+              } else {
+                onNavigate(link.to);
+              }
+            }}
+          >
+            {link.label}
+          </button>
+        ))}
+      </div>
+    </nav>
+  );
+}
+
+interface MobileDrawerProps {
+  isSearchActive: boolean;
+  searchMode: string | null;
+  isAuthenticated: boolean;
+  onNavigate: (to: string) => void;
+  onHashNav: (hash: string) => void;
+  onClose: () => void;
+}
+
+function MobileDrawer({
+  isSearchActive,
+  searchMode,
+  isAuthenticated,
+  onNavigate,
+  onHashNav,
+  onClose,
+}: MobileDrawerProps) {
+  const headerOffset = 'calc(var(--header-height) + var(--safe-top))';
+
+  return createPortal(
+    <>
+      <button
+        type="button"
+        className={styles.mobileBackdrop}
+        aria-label="Закрыть меню"
+        onClick={onClose}
+        style={{ top: headerOffset }}
+      />
+      <nav
+        className={styles.mobileDrawer}
+        aria-label="Основная навигация"
+        style={{ top: headerOffset }}
+      >
+        <div className={styles.mobileSection}>
+          <p className={styles.mobileSectionTitle}>Услуги</p>
+          {PRIMARY_NAV.map((link) => {
+            const isActive = isSearchActive && searchMode === link.mode;
+            return (
+              <button
+                key={link.label}
+                type="button"
+                className={`${styles.mobileItem} ${isActive ? styles.mobileItemActive : ''}`}
+                onClick={() => onNavigate(link.to)}
+              >
+                {link.label}
+              </button>
+            );
+          })}
+        </div>
+
+        <div className={styles.mobileSection}>
+          <p className={styles.mobileSectionTitle}>Разделы</p>
+          {SECONDARY_NAV.map((link) => (
+            <button
+              key={link.label}
+              type="button"
+              className={styles.mobileItem}
+              onClick={() => {
+                if (link.hash) {
+                  onHashNav(link.hash);
+                } else {
+                  onNavigate(link.to);
+                }
+              }}
+            >
+              {link.label}
+            </button>
+          ))}
+        </div>
+
+        <div className={styles.mobileSection}>
+          <p className={styles.mobileSectionTitle}>Контакты</p>
+          <a href="tel:88001234567" className={styles.mobileItem} onClick={onClose}>
+            8 800 123-45-67
+          </a>
+          {!isAuthenticated && (
+            <button type="button" className={styles.mobileItem} onClick={() => onNavigate('/login')}>
+              Войти в аккаунт
+            </button>
+          )}
+        </div>
+      </nav>
+    </>,
+    document.body,
+  );
+}
+
 export function Header() {
   const { user, isAuthenticated, logout } = useAuth();
   const { toggleTheme, isDark } = useTheme();
@@ -153,22 +288,16 @@ export function Header() {
     onHashNav: handleHashNav,
   };
 
-  const mobileMenu = mobileOpen
-    ? createPortal(
-        <>
-          <button
-            type="button"
-            className={styles.backdrop}
-            aria-label="Закрыть меню"
-            onClick={() => setMobileOpen(false)}
-          />
-          <nav className={`${styles.navMobile} ${styles.navOpen}`} aria-label="Основная навигация">
-            <NavLinks {...navProps} />
-          </nav>
-        </>,
-        document.body,
-      )
-    : null;
+  const mobileMenu = mobileOpen ? (
+    <MobileDrawer
+      isSearchActive={isSearchActive}
+      searchMode={searchMode}
+      isAuthenticated={isAuthenticated}
+      onNavigate={handleNavNavigate}
+      onHashNav={handleHashNav}
+      onClose={() => setMobileOpen(false)}
+    />
+  ) : null;
 
   return (
     <>
