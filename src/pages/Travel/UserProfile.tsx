@@ -7,6 +7,7 @@ import { cancelTravelBooking } from '../../lib/travel/api';
 import { createYooKassaPayment } from '../../lib/travel/payments';
 import { getSupabaseClient, isSupabaseConfigured } from '../../lib/supabase';
 import { getCurrentUserProfile, updateUserProfile, profileToUserCar } from '../../lib/travel/profileApi';
+import { loadUserCar, removeUserCar, saveUserCar } from '../../lib/userStorage';
 import { Button } from '../../components/Button/Button';
 import type { TravelBooking, PartnerReview } from '../../lib/travel/types';
 import { getReviewForBooking, createPartnerReview } from '../../lib/travel/reviews';
@@ -67,21 +68,6 @@ function getStatusClass(status: string): string {
     cancelled: styles.statusCancelled,
   };
   return map[status] || '';
-}
-
-const STORAGE_KEY = 'priboi_user_car';
-
-function loadOwnCar(): OwnCarInfo | null {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? JSON.parse(raw) : null;
-  } catch {
-    return null;
-  }
-}
-
-function saveOwnCar(car: OwnCarInfo): void {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(car));
 }
 
 function TripReview({ trip }: { trip: TravelBooking }) {
@@ -192,36 +178,47 @@ export function UserProfile() {
   }, [searchParams]);
 
   useEffect(() => {
+    if (!user?.id) {
+      setOwnCar(null);
+      setCarForm({ brand: '', model: '', color: '', license_plate: '' });
+      return;
+    }
+
     getCurrentUserProfile().then((profile) => {
       if (profile) {
-        setName(profile.name || user?.name || '');
-        setPhone(profile.phone || user?.phone || '');
+        setName(profile.name || user.name || '');
+        setPhone(profile.phone || user.phone || '');
         const car = profileToUserCar(profile);
         if (car) {
-          setOwnCar({
+          const ownCarData = {
             brand: car.brand,
             model: car.model,
             color: car.color || '',
             license_plate: car.license_plate || '',
-          });
-          setCarForm({
-            brand: car.brand,
-            model: car.model,
-            color: car.color || '',
-            license_plate: car.license_plate || '',
-          });
+          };
+          setOwnCar(ownCarData);
+          setCarForm(ownCarData);
+          saveUserCar(user.id, ownCarData);
+          return;
         }
       }
-    });
-  }, [user]);
 
-  useEffect(() => {
-    const saved = loadOwnCar();
-    if (saved && !ownCar) {
-      setOwnCar(saved);
-      setCarForm(saved);
-    }
-  }, [ownCar]);
+      const saved = loadUserCar(user.id);
+      if (saved?.brand && saved.model) {
+        const ownCarData = {
+          brand: saved.brand,
+          model: saved.model,
+          color: saved.color || '',
+          license_plate: saved.license_plate || '',
+        };
+        setOwnCar(ownCarData);
+        setCarForm(ownCarData);
+      } else {
+        setOwnCar(null);
+        setCarForm({ brand: '', model: '', color: '', license_plate: '' });
+      }
+    });
+  }, [user?.id, user?.name, user?.phone]);
 
   const handlePayOnline = useCallback(async (tripId: string) => {
     if (!isSupabaseConfigured()) {
@@ -264,7 +261,7 @@ export function UserProfile() {
     setProfileError(null);
     try {
       await updateUserProfile({ own_car: carForm });
-      saveOwnCar(carForm);
+      if (user?.id) saveUserCar(user.id, carForm);
       setOwnCar(carForm);
       setEditingCar(false);
     } catch (err) {
@@ -292,7 +289,7 @@ export function UserProfile() {
     setSavingProfile(true);
     try {
       await updateUserProfile({ own_car: null });
-      localStorage.removeItem(STORAGE_KEY);
+      if (user?.id) removeUserCar(user.id);
       setOwnCar(null);
       setCarForm({ brand: '', model: '', color: '', license_plate: '' });
     } catch (err) {

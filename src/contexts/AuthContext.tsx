@@ -2,6 +2,7 @@ import { createContext, useContext, useState, useEffect, ReactNode, useCallback 
 import type { AuthChangeEvent, Session } from '@supabase/supabase-js';
 import { getSupabaseClient, isSupabaseConfigured } from '../lib/supabase';
 import { mapAuthError, isDuplicateSignup, needsEmailConfirmation } from '../lib/authErrors';
+import { clearLegacyUserData, clearUserLocalData } from '../lib/userStorage';
 import type { Profile } from '../lib/travel/types';
 
 export interface User {
@@ -84,6 +85,7 @@ function loadUserSession(): User | null {
 function clearSession(): void {
   localStorage.removeItem(USER_KEY);
   localStorage.removeItem(AUTH_TOKEN_KEY);
+  clearLegacyUserData();
 }
 
 function getAdminEmail(): string {
@@ -170,6 +172,7 @@ async function completeRegistration(
   }
 
   const fullUser: User = { ...userObj, name, phone };
+  clearLegacyUserData();
   setUser(fullUser);
   saveUserSession(fullUser);
   return { success: true, role: fullUser.role || 'user' };
@@ -371,6 +374,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           data.user.user_metadata?.phone || '',
         );
         const userObj = await loadUserFromSession(data.user.email || email, data.user.id, { awaitAdminSync: true });
+        clearLegacyUserData();
         setUser(userObj);
         saveUserSession(userObj);
         return { success: true, role: userObj.role };
@@ -488,12 +492,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const logout = async () => {
+    const userId = user?.id;
     if (isSupabaseConfigured()) {
       try {
         const supabase = getSupabaseClient();
         await supabase.auth.signOut();
       } catch { /* ignore */ }
     }
+    if (userId) clearUserLocalData(userId);
     clearSession();
     setUser(null);
   };

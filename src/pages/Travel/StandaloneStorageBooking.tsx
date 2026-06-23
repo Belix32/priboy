@@ -12,12 +12,11 @@ import { sendBookingNotification } from '../../lib/travel/notifications';
 import { validatePromoCode } from '../../lib/travel/promos';
 import { getAppSettings, getRentalDayLimits, getStoragePricePerDay } from '../../lib/travel/settings';
 import { getCurrentUserProfile, profileToUserCar } from '../../lib/travel/profileApi';
+import { loadUserCar } from '../../lib/userStorage';
 import { getErrorMessage } from '../../lib/apiError';
 import type { PartnerLocation } from '../../lib/travel/types';
 import styles from './TravelBooking.module.css';
 import sharedStyles from './Travel.module.css';
-
-const PROFILE_CAR_KEY = 'priboi_user_car';
 
 function formatDateDisplay(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString('ru-RU', {
@@ -83,6 +82,8 @@ export function StandaloneStorageBooking() {
   }, [locationId]);
 
   useEffect(() => {
+    if (!user?.id) return;
+
     getCurrentUserProfile().then((profile) => {
       const car = profileToUserCar(profile);
       if (car?.brand && car.model) {
@@ -90,22 +91,18 @@ export function StandaloneStorageBooking() {
         setOwnModel(car.model);
         setOwnColor(car.color || '');
         setOwnPlate(car.license_plate || '');
-      } else {
-        try {
-          const raw = localStorage.getItem(PROFILE_CAR_KEY);
-          if (raw) {
-            const saved = JSON.parse(raw);
-            setOwnBrand(saved.brand || '');
-            setOwnModel(saved.model || '');
-            setOwnColor(saved.color || '');
-            setOwnPlate(saved.license_plate || '');
-          }
-        } catch {
-          /* ignore */
-        }
+        return;
+      }
+
+      const saved = loadUserCar(user.id);
+      if (saved?.brand && saved.model) {
+        setOwnBrand(saved.brand);
+        setOwnModel(saved.model);
+        setOwnColor(saved.color || '');
+        setOwnPlate(saved.license_plate || '');
       }
     });
-  }, []);
+  }, [user?.id]);
 
   const priceBreakdown = useMemo(() => {
     if (!startDate || !endDate) return null;

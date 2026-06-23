@@ -1,5 +1,10 @@
 import { getSupabaseClient, isSupabaseConfigured } from '../supabase';
 import { throwIfSupabaseError } from '../apiError';
+import {
+  clearLegacyUserData,
+  loadUserProfileCache,
+  saveUserProfileCache,
+} from '../userStorage';
 import type { Profile, UserCarInfo } from './types';
 
 export interface UserProfileData extends Profile {
@@ -9,16 +14,24 @@ export interface UserProfileData extends Profile {
   own_car_license_plate?: string | null;
 }
 
-const LS_PROFILE = 'priboi_user_profile_cache';
+async function getLocalAuthId(): Promise<string | null> {
+  try {
+    const stored = localStorage.getItem('priboi_user');
+    const token = localStorage.getItem('priboi_token');
+    if (!stored || !token) return null;
+    const data = JSON.parse(atob(stored));
+    return data.id || null;
+  } catch {
+    return null;
+  }
+}
 
 export async function getCurrentUserProfile(): Promise<UserProfileData | null> {
   if (!isSupabaseConfigured()) {
-    try {
-      const raw = localStorage.getItem(LS_PROFILE);
-      return raw ? JSON.parse(raw) : null;
-    } catch {
-      return null;
-    }
+    const authId = await getLocalAuthId();
+    if (!authId) return null;
+    clearLegacyUserData();
+    return loadUserProfileCache<UserProfileData>(authId);
   }
 
   const supabase = getSupabaseClient();
@@ -42,6 +55,9 @@ export async function updateUserProfile(updates: {
   own_car?: UserCarInfo | null;
 }): Promise<UserProfileData | null> {
   if (!isSupabaseConfigured()) {
+    const authId = await getLocalAuthId();
+    if (!authId) throw new Error('Необходима авторизация');
+
     const existing = (await getCurrentUserProfile()) || ({} as UserProfileData);
     const merged: UserProfileData = {
       ...existing,
@@ -52,7 +68,7 @@ export async function updateUserProfile(updates: {
       own_car_color: updates.own_car?.color ?? existing.own_car_color,
       own_car_license_plate: updates.own_car?.license_plate ?? existing.own_car_license_plate,
     };
-    localStorage.setItem(LS_PROFILE, JSON.stringify(merged));
+    saveUserProfileCache(authId, merged);
     return merged;
   }
 

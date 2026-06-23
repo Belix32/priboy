@@ -15,22 +15,11 @@ import type { PartnerCar } from '../../lib/travel/types';
 import styles from './TravelBooking.module.css';
 import sharedStyles from './Travel.module.css';
 
-const PROFILE_CAR_KEY = 'priboi_user_car';
-
 interface ProfileCar {
   brand: string;
   model: string;
   color: string;
   license_plate: string;
-}
-
-function loadProfileCar(): ProfileCar | null {
-  try {
-    const raw = localStorage.getItem(PROFILE_CAR_KEY);
-    return raw ? JSON.parse(raw) : null;
-  } catch {
-    return null;
-  }
 }
 
 function formatDateDisplay(dateStr: string): string {
@@ -122,6 +111,8 @@ export function TravelBooking() {
 
   // Load saved car from user profile
   useEffect(() => {
+    if (!user?.id) return;
+
     getCurrentUserProfile().then((profile) => {
       const saved = profileToUserCar(profile);
       if (saved?.brand && saved.model) {
@@ -133,7 +124,7 @@ export function TravelBooking() {
         });
       }
     });
-  }, []);
+  }, [user?.id]);
 
   const priceOptions = useMemo(
     () => ({
