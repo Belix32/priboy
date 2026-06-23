@@ -3,13 +3,12 @@ import { lazy, Suspense } from 'react';
 import { Header } from './components/Header/Header';
 import { PageLoader } from './components/PageLoader/PageLoader';
 import { RouteGuard } from './components/RouteGuard/RouteGuard';
-import { useAuth } from './contexts/AuthContext';
+import { TravelHome } from './pages/Travel/TravelHome';
 
 const Login = lazy(() => import('./pages/Login/Login').then(m => ({ default: m.Login })));
 const ResetPassword = lazy(() => import('./pages/Login/ResetPassword').then(m => ({ default: m.ResetPassword })));
 const Register = lazy(() => import('./pages/Register/Register').then(m => ({ default: m.Register })));
 
-const TravelHome = lazy(() => import('./pages/Travel/TravelHome').then(m => ({ default: m.TravelHome })));
 const TravelSearch = lazy(() => import('./pages/Travel/TravelSearch').then(m => ({ default: m.TravelSearch })));
 const TravelBooking = lazy(() => import('./pages/Travel/TravelBooking').then(m => ({ default: m.TravelBooking })));
 const TravelBookingConfirm = lazy(() => import('./pages/Travel/TravelBookingConfirm').then(m => ({ default: m.TravelBookingConfirm })));
@@ -55,12 +54,7 @@ function ProtectedAuth({ children }: { children: React.ReactNode }) {
 
 export default function App() {
   const location = useLocation();
-  const { isLoading } = useAuth();
   const showHeader = !location.pathname.startsWith('/admin') && !location.pathname.startsWith('/partner');
-
-  if (isLoading) {
-    return <PageLoader fullScreen message="Подготавливаем ваш кабинет" />;
-  }
 
   return (
     <>

@@ -151,9 +151,14 @@ async function fetchProfile(authId: string): Promise<Profile | null> {
   }
 }
 
-async function loadUserFromSession(email: string, authId: string): Promise<User> {
-  await syncAdminRole();
+async function loadUserFromSession(
+  email: string,
+  authId: string,
+  options?: { awaitAdminSync?: boolean },
+): Promise<User> {
+  const adminSync = syncAdminRole().catch(() => {});
   const profile = await fetchProfile(authId);
+  if (options?.awaitAdminSync) await adminSync;
   if (profile) {
     return profileToUser(profile, email);
   }
@@ -178,8 +183,8 @@ function profileToUser(profile: Profile, email: string): User {
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [user, setUser] = useState<User | null>(() => loadUserSession());
+  const [isLoading, setIsLoading] = useState(() => loadUserSession() === null);
 
   const refreshProfile = useCallback(async () => {
     if (!isSupabaseConfigured()) return;
@@ -199,40 +204,65 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    async function init() {
-      if (isSupabaseConfigured()) {
-        try {
-          const supabase = getSupabaseClient();
-          const { data: sessionData } = await supabase.auth.getSession();
-          if (sessionData?.session?.user) {
-            const email = sessionData.session.user.email || '';
-            const userObj = await loadUserFromSession(email, sessionData.session.user.id);
+    let cancelled = false;
+
+    async function refreshSession() {
+      if (!isSupabaseConfigured()) {
+        setIsLoading(false);
+        return;
+      }
+
+      try {
+        const supabase = getSupabaseClient();
+        const { data: sessionData } = await supabase.auth.getSession();
+        if (cancelled) return;
+
+        if (sessionData?.session?.user) {
+          const email = sessionData.session.user.email || '';
+          const userObj = await loadUserFromSession(email, sessionData.session.user.id);
+          if (!cancelled) {
             setUser(userObj);
             saveUserSession(userObj);
           }
-
-          supabase.auth.onAuthStateChange(async (_event: string, session: { user: { id: string; email?: string } } | null) => {
-            if (session?.user) {
-              const email = session.user.email || '';
-              const userObj = await loadUserFromSession(email, session.user.id);
-              setUser(userObj);
-              saveUserSession(userObj);
-            } else {
-              setUser(null);
-              clearSession();
-            }
-          });
-        } catch {
-          const localUser = loadUserSession();
-          if (localUser) setUser(localUser);
+        } else {
+          setUser(null);
+          clearSession();
         }
-      } else {
-        const localUser = loadUserSession();
-        if (localUser) setUser(localUser);
+      } catch {
+        /* keep cached user on network errors */
+      } finally {
+        if (!cancelled) setIsLoading(false);
       }
-      setIsLoading(false);
     }
-    init();
+
+    if (isSupabaseConfigured()) {
+      const supabase = getSupabaseClient();
+      const { data: { subscription } } = supabase.auth.onAuthStateChange(
+        async (_event: string, session: { user: { id: string; email?: string } } | null) => {
+          if (session?.user) {
+            const email = session.user.email || '';
+            const userObj = await loadUserFromSession(email, session.user.id);
+            setUser(userObj);
+            saveUserSession(userObj);
+          } else {
+            setUser(null);
+            clearSession();
+          }
+        },
+      );
+
+      void refreshSession();
+
+      return () => {
+        cancelled = true;
+        subscription.unsubscribe();
+      };
+    }
+
+    setIsLoading(false);
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const login = async (email: string, password: string): Promise<{ success: boolean; error?: string; role?: string }> => {
@@ -271,7 +301,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           data.user.user_metadata?.name || '',
           data.user.user_metadata?.phone || '',
         );
-        const userObj = await loadUserFromSession(data.user.email || email, data.user.id);
+        const userObj = await loadUserFromSession(data.user.email || email, data.user.id, { awaitAdminSync: true });
         setUser(userObj);
         saveUserSession(userObj);
         return { success: true, role: userObj.role };
