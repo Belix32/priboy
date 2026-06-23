@@ -40,6 +40,7 @@ export function Register() {
   const [showConfirm, setShowConfirm] = useState(false);
   const [errors, setErrors] = useState<FieldErrors>({});
   const [serverError, setServerError] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
   const [loading, setLoading] = useState(false);
 
   const strength = getPasswordStrength(password);
@@ -68,12 +69,15 @@ export function Register() {
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     setServerError('');
+    setSuccessMessage('');
     if (!validate()) return;
     setLoading(true);
     const result = await register(name.trim(), email.trim().toLowerCase(), phone.trim(), password);
     setLoading(false);
     if (result.success) {
       navigate(getPostAuthPath(result.role || 'user', redirectOpts), { replace: true });
+    } else if (result.emailConfirmationRequired) {
+      setSuccessMessage(result.error || 'Подтвердите email по ссылке из письма, затем войдите.');
     } else {
       setServerError(result.error || 'Ошибка регистрации');
     }
@@ -302,6 +306,16 @@ export function Register() {
                 {errors.confirmPassword && <span className={styles.fieldError}>{errors.confirmPassword}</span>}
               </div>
             </div>
+
+            {successMessage && (
+              <div className={styles.formSuccess} style={{ marginTop: 16 }}>
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                  <circle cx="8" cy="8" r="6.5" stroke="currentColor" strokeWidth="1.3" />
+                  <path d="M5 8.5l2 2 4-4.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+                {successMessage}
+              </div>
+            )}
 
             {serverError && (
               <div className={styles.formError} style={{ marginTop: 16 }}>

@@ -1,7 +1,7 @@
 import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import type { AuthChangeEvent, Session } from '@supabase/supabase-js';
 import { getSupabaseClient, isSupabaseConfigured } from '../lib/supabase';
-import { mapAuthError, isDuplicateSignup } from '../lib/authErrors';
+import { mapAuthError, isDuplicateSignup, needsEmailConfirmation } from '../lib/authErrors';
 import type { Profile } from '../lib/travel/types';
 
 export interface User {
@@ -24,7 +24,12 @@ interface AuthContextType {
   partnerId: string | null;
   hasAdminAccess: boolean;
   login: (email: string, password: string) => Promise<{ success: boolean; error?: string; role?: string }>;
-  register: (name: string, email: string, phone: string, password: string) => Promise<{ success: boolean; error?: string; role?: string }>;
+  register: (
+    name: string,
+    email: string,
+    phone: string,
+    password: string,
+  ) => Promise<{ success: boolean; error?: string; role?: string; emailConfirmationRequired?: boolean }>;
   logout: () => Promise<void>;
   refreshProfile: () => Promise<void>;
 }
@@ -338,7 +343,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     email: string,
     phone: string,
     password: string,
-  ): Promise<{ success: boolean; error?: string; role?: string }> => {
+  ): Promise<{ success: boolean; error?: string; role?: string; emailConfirmationRequired?: boolean }> => {
     if (!name || name.trim().length < 2) {
       return { success: false, error: 'Имя должно быть не менее 2 символов' };
     }
@@ -368,11 +373,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const { data, error } = await supabase.auth.signUp({
         email: normalizedEmail,
         password,
-        options: { data: { name: trimmedName, phone: trimmedPhone } },
+        options: {
+          data: { name: trimmedName, phone: trimmedPhone },
+          emailRedirectTo: `${window.location.origin}/login`,
+        },
       });
 
       if (error) {
-        return { success: false, error: mapAuthError(error) };
+        return { success: false, error: mapAuthError(error, 'register') };
       }
 
       if (isDuplicateSignup(data.user)) {
@@ -382,12 +390,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         };
       }
 
-      let authUser = data.user;
-      let session = data.session;
+      if (!data.user) {
+        return { success: false, error: 'Ошибка регистрации. Попробуйте снова' };
+      }
 
-      // Supabase often returns user without session — sign in immediately
-      if (!session && authUser) {
-        await new Promise((resolve) => setTimeout(resolve, 400));
+      if (!data.session) {
+        if (needsEmailConfirmation(data.user)) {
+          return {
+            success: false,
+            emailConfirmationRequired: true,
+            error: 'Аккаунт создан. Подтвердите email по ссылке из письма, затем войдите.',
+          };
+        }
 
         const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
           email: normalizedEmail,
@@ -395,20 +409,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         });
 
         if (signInError) {
-          return { success: false, error: mapAuthError(signInError) };
+          return { success: false, error: mapAuthError(signInError, 'register') };
         }
 
-        authUser = signInData.user;
-        session = signInData.session;
+        if (!signInData.user) {
+          return { success: false, error: 'Ошибка регистрации. Попробуйте войти вручную' };
+        }
+
+        await ensureUserProfile(
+          signInData.user.id,
+          signInData.user.email || normalizedEmail,
+          trimmedName,
+          trimmedPhone,
+        );
+
+        const userObj = await loadUserFromSession(signInData.user.email || normalizedEmail, signInData.user.id);
+        const fullUser: User = { ...userObj, name: trimmedName, phone: trimmedPhone };
+        setUser(fullUser);
+        saveUserSession(fullUser);
+
+        return { success: true, role: fullUser.role };
       }
 
-      if (!authUser) {
-        return { success: false, error: 'Ошибка регистрации' };
-      }
+      await ensureUserProfile(data.user.id, data.user.email || normalizedEmail, trimmedName, trimmedPhone);
 
-      await ensureUserProfile(authUser.id, authUser.email || normalizedEmail, trimmedName, trimmedPhone);
-
-      const userObj = await loadUserFromSession(authUser.email || normalizedEmail, authUser.id);
+      const userObj = await loadUserFromSession(data.user.email || normalizedEmail, data.user.id);
       const fullUser: User = { ...userObj, name: trimmedName, phone: trimmedPhone };
       setUser(fullUser);
       saveUserSession(fullUser);

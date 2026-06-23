@@ -1,17 +1,39 @@
 import type { AuthError } from '@supabase/supabase-js';
 
-export function mapAuthError(error: AuthError | Error | null | undefined): string {
+export type AuthErrorContext = 'login' | 'register';
+
+export function mapAuthError(
+  error: AuthError | Error | null | undefined,
+  context: AuthErrorContext = 'login',
+): string {
   if (!error) return 'Неизвестная ошибка';
 
   const message = (error.message || '').toLowerCase();
   const status = 'status' in error ? (error as AuthError).status : undefined;
+  const name = (error.name || '').toLowerCase();
+
+  if (
+    message.includes('failed to fetch') ||
+    message.includes('networkerror') ||
+    message.includes('network request failed') ||
+    message.includes('load failed') ||
+    message.includes('abort') ||
+    name.includes('aborterror') ||
+    name.includes('authretryablefetcherror')
+  ) {
+    return context === 'register'
+      ? 'Не удалось завершить регистрацию. Проверьте интернет и попробуйте снова'
+      : 'Ошибка сети. Проверьте подключение';
+  }
 
   if (message.includes('invalid login credentials') || message.includes('invalid credentials')) {
-    return 'Неверный email или пароль';
+    return context === 'register'
+      ? 'Не удалось войти после регистрации. Если включено подтверждение email — подтвердите почту и войдите вручную'
+      : 'Неверный email или пароль';
   }
 
   if (message.includes('email not confirmed') || message.includes('not confirmed')) {
-    return 'Подтвердите email по ссылке из письма или отключите подтверждение в Supabase';
+    return 'Подтвердите email по ссылке из письма, затем войдите';
   }
 
   if (message.includes('user already registered') || message.includes('already been registered')) {
@@ -44,11 +66,19 @@ export function mapAuthError(error: AuthError | Error | null | undefined): strin
     return error.message || 'Ошибка авторизации';
   }
 
-  return 'Ошибка входа. Проверьте email и пароль';
+  return context === 'register'
+    ? 'Ошибка регистрации. Попробуйте снова или войдите, если аккаунт уже создан'
+    : 'Ошибка входа. Проверьте email и пароль';
 }
 
 export function isDuplicateSignup(
   user: { identities?: unknown[] | null } | null | undefined,
 ): boolean {
   return !!user && Array.isArray(user.identities) && user.identities.length === 0;
+}
+
+export function needsEmailConfirmation(
+  user: { email_confirmed_at?: string | null; confirmed_at?: string | null } | null | undefined,
+): boolean {
+  return !!user && !user.email_confirmed_at && !user.confirmed_at;
 }

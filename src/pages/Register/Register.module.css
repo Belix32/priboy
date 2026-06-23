@@ -290,6 +290,18 @@
   gap: 8px;
 }
 
+.formSuccess {
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  border-radius: var(--radius-md);
+  padding: 10px 14px;
+  font-size: 13px;
+  color: var(--success);
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
 .loginLink {
   text-align: center;
   margin-top: 20px;
