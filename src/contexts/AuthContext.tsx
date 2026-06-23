@@ -103,32 +103,76 @@ async function ensureUserProfile(
 ): Promise<void> {
   if (!isSupabaseConfigured()) return;
 
-  const supabase = getSupabaseClient();
-  const { data: existing } = await supabase
-    .from('profiles')
-    .select('id')
-    .eq('auth_id', authId)
-    .maybeSingle();
-
-  if (!existing) {
-    await supabase.from('profiles').insert({
-      auth_id: authId,
-      name: name || email.split('@')[0],
-      phone: phone || '',
-      role: isAdminEmail(email) ? 'admin' : 'user',
-    });
-    return;
-  }
-
-  if (name || phone) {
-    await supabase
+  try {
+    const supabase = getSupabaseClient();
+    const { data: existing, error: selectError } = await supabase
       .from('profiles')
-      .update({
-        ...(name ? { name } : {}),
-        ...(phone ? { phone } : {}),
-      })
-      .eq('auth_id', authId);
+      .select('id')
+      .eq('auth_id', authId)
+      .maybeSingle();
+
+    if (selectError) return;
+
+    if (!existing) {
+      const { error: insertError } = await supabase.from('profiles').insert({
+        auth_id: authId,
+        name: name || email.split('@')[0],
+        phone: phone || '',
+        role: isAdminEmail(email) ? 'admin' : 'user',
+      });
+      if (insertError && insertError.code !== '23505') {
+        console.error('ensureUserProfile insert failed', insertError.message);
+      }
+      return;
+    }
+
+    if (name || phone) {
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({
+          ...(name ? { name } : {}),
+          ...(phone ? { phone } : {}),
+        })
+        .eq('auth_id', authId);
+      if (updateError) {
+        console.error('ensureUserProfile update failed', updateError.message);
+      }
+    }
+  } catch {
+    /* Profile is also created by DB trigger — registration must not fail here */
   }
+}
+
+function buildFallbackUser(authId: string, email: string, name: string, phone: string): User {
+  return {
+    id: authId,
+    name: name || email.split('@')[0],
+    email,
+    phone,
+    role: isAdminEmail(email) ? 'admin' : 'user',
+  };
+}
+
+async function completeRegistration(
+  authId: string,
+  email: string,
+  name: string,
+  phone: string,
+  setUser: (user: User | null) => void,
+): Promise<{ success: true; role: string }> {
+  await ensureUserProfile(authId, email, name, phone);
+
+  let userObj: User;
+  try {
+    userObj = await loadUserFromSession(email, authId);
+  } catch {
+    userObj = buildFallbackUser(authId, email, name, phone);
+  }
+
+  const fullUser: User = { ...userObj, name, phone };
+  setUser(fullUser);
+  saveUserSession(fullUser);
+  return { success: true, role: fullUser.role || 'user' };
 }
 
 async function syncAdminRole(): Promise<void> {
@@ -396,6 +440,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (!data.session) {
         if (needsEmailConfirmation(data.user)) {
+          try {
+            await ensureUserProfile(data.user.id, normalizedEmail, trimmedName, trimmedPhone);
+          } catch {
+            /* account exists in auth even if profile setup is delayed */
+          }
           return {
             success: false,
             emailConfirmationRequired: true,
@@ -416,31 +465,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           return { success: false, error: 'Ошибка регистрации. Попробуйте войти вручную' };
         }
 
-        await ensureUserProfile(
+        return completeRegistration(
           signInData.user.id,
           signInData.user.email || normalizedEmail,
           trimmedName,
           trimmedPhone,
+          setUser,
         );
-
-        const userObj = await loadUserFromSession(signInData.user.email || normalizedEmail, signInData.user.id);
-        const fullUser: User = { ...userObj, name: trimmedName, phone: trimmedPhone };
-        setUser(fullUser);
-        saveUserSession(fullUser);
-
-        return { success: true, role: fullUser.role };
       }
 
-      await ensureUserProfile(data.user.id, data.user.email || normalizedEmail, trimmedName, trimmedPhone);
-
-      const userObj = await loadUserFromSession(data.user.email || normalizedEmail, data.user.id);
-      const fullUser: User = { ...userObj, name: trimmedName, phone: trimmedPhone };
-      setUser(fullUser);
-      saveUserSession(fullUser);
-
-      return { success: true, role: fullUser.role };
-    } catch {
-      return { success: false, error: 'Ошибка сети. Проверьте подключение.' };
+      return completeRegistration(
+        data.user.id,
+        data.user.email || normalizedEmail,
+        trimmedName,
+        trimmedPhone,
+        setUser,
+      );
+    } catch (error) {
+      console.error('register failed', error);
+      return { success: false, error: mapAuthError(error as Error, 'register') };
     }
   };
 

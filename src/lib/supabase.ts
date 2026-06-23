@@ -2,7 +2,7 @@ import { createClient } from '@supabase/supabase-js';
 
 let supabaseClient: ReturnType<typeof createClient> | null = null;
 
-const AUTH_FETCH_TIMEOUT_MS = 8_000;
+const AUTH_FETCH_TIMEOUT_MS = 25_000;
 
 function fetchWithTimeout(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
   const controller = new AbortController();

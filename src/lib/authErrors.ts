@@ -40,6 +40,14 @@ export function mapAuthError(
     return 'Пользователь с таким email уже зарегистрирован';
   }
 
+  if (
+    message.includes('database error') ||
+    message.includes('unexpected_failure') ||
+    message.includes('saving new user')
+  ) {
+    return 'Ошибка на сервере при создании аккаунта. Попробуйте снова через минуту';
+  }
+
   if (message.includes('password') && message.includes('weak')) {
     return 'Пароль слишком простой — используйте минимум 8 символов';
   }
